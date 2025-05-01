@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "155641305476",
+    "project_id": "parkingreminder-6466d",
+    "storage_bucket": "parkingreminder-6466d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:155641305476:android:5b32133a354a0141fa65d1",
+        "android_client_info": {
+          "package_name": "com.example.ParkingReminder"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4Xsw5IoKo5QS0bbgkIklPWAnMuf_4Eqw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
