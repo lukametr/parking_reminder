@@ -1,85 +1,86 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:geolocator/geolocator.dart';
 
 class NotificationService {
-  static final _locNotif = FlutterLocalNotificationsPlugin();
+  static final _plugin = FlutterLocalNotificationsPlugin();
+  
+  // 1. Константы для канала уведомлений
+  static const _channelId = 'parking_channel';
+  static const _channelName = 'Parking Alerts';
 
   static Future<void> initialize() async {
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const initSettings = InitializationSettings(android: androidInit);
-
-    await _locNotif.initialize(
-      initSettings,
+    // 2. Инициализация иконки (без @)
+    const androidSettings = AndroidInitializationSettings('mipmap/ic_launcher');
+    
+    // 3. Создание канала уведомлений
+    const androidChannel = AndroidNotificationChannel(
+      _channelId,
+      _channelName,
+      importance: Importance.high,
+      description: 'Channel for parking notifications',
+    );
+    
+    await _plugin.initialize(
+      const InitializationSettings(android: androidSettings),
       onDidReceiveNotificationResponse: (response) {
-        final payload   = response.payload;
-        final actionId = response.actionId;
-        FlutterBackgroundService().invoke(
-          'notificationResponse',
-          {'payload': payload, 'action': actionId},
-        );
+        handleAction(response.actionId ?? response.payload ?? '');
       },
     );
 
-    const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      'parking_chan', 'Parking Alerts',
-      description: 'პარკირების შეტყობინებები',
-      importance: Importance.high,
-    );
-    await _locNotif
+    // 4. Создаем канал для Android 8+
+    await _plugin
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
+        ?.createNotificationChannel(androidChannel);
   }
 
-  static Future<void> showInit(String lot) async {
-    const androidDetails = AndroidNotificationDetails(
-      'parking_chan', 'Parking Alerts',
-      importance: Importance.max,
-      priority: Priority.high,
-      actions: <AndroidNotificationAction>[
-        AndroidNotificationAction('park', '🚗 პარკირება'),
-        AndroidNotificationAction('cancel', '❌ გამოტოვება'),
-      ],
-    );
-    await _locNotif.show(
-      1000,
-      'თქვენ ხართ ლოტზე №  $lot?',
-      ' ',
-      const NotificationDetails(android: androidDetails),
-      payload: 'init:$lot',
-    );
-  }
-
-  static Future<void> showLeave(String lot) async {
-    const androidDetails = AndroidNotificationDetails(
-      'parking_chan', 'Parking Alerts',
-      importance: Importance.max,
-      priority: Priority.high,
-      actions: <AndroidNotificationAction>[
-        AndroidNotificationAction('yes', 'დასრულება'),
-        AndroidNotificationAction('no', 'გაგრძელება'),
-      ],
-    );
-    await _locNotif.show(
-      1001,
-      'თვენ დატოვეთ ლოტი №  $lot?',
-      'არ დაგავიწყდეთ პარკირების დასრულება',
-      const NotificationDetails(android: androidDetails),
-      payload: 'leave:$lot',
-    );
-  }
-
-  static Future<void> showFinal(String lot) async {
-    const androidDetails = AndroidNotificationDetails(
-      'parking_chan', 'Parking Alerts',
+  static Future<void> showInit(Position pos) async {
+    // 5. Используем константы канала
+    const details = AndroidNotificationDetails(
+      _channelId,
+      _channelName,
       importance: Importance.high,
       priority: Priority.high,
+      actions: [
+        AndroidNotificationAction('park', 'პარკირება'),
+        AndroidNotificationAction('cancel', 'გამოტოვება'),
+      ],
     );
-    await _locNotif.show(
-      1002,
-      'არ დაგავიწყდეთ პარკირების დაწყება',
-      'ლოტი №  $lot',
-      const NotificationDetails(android: androidDetails),
+    
+    await _plugin.show(
+      DateTime.now().millisecondsSinceEpoch, // Уникальный ID
+      'პარკირების ზონა',
+      'გსურთ პარკირების დაწყება?',
+      NotificationDetails(android: details),
+      payload: '${pos.latitude},${pos.longitude}',
     );
   }
+
+  // 6. Улучшенная обработка действий
+  static void handleAction(String actionId) {
+    switch (actionId) {
+      case 'park':
+        _startParking();
+        break;
+      case 'cancel':
+        _skipParking();
+        break;
+      default:
+        _handleNotificationTap();
+    }
+  }
+
+  static void _startParking() {
+    // Логика старта парковки
+  }
+
+  static void _skipParking() {
+    // Логика отмены
+  }
+
+  static void _handleNotificationTap() {
+    // Действие при тапе на уведомление
+  }
+
+  static Future<void> cancelAll() => _plugin.cancelAll();
 }

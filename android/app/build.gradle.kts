@@ -6,31 +6,27 @@ import java.io.FileInputStream
 plugins {
     id("com.android.application")
     id("com.google.gms.google-services")
-    id("kotlin-android")
+    id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
 android {
     namespace = "com.findall.ParkingReminder"
     compileSdk = 35
-    // Устанавливаем требуемую NDK-версию
     ndkVersion = "27.0.12077973"
 
     defaultConfig {
         applicationId = "com.findall.ParkingReminder"
         minSdk = 23
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
-
-        // Включаем multidex, если нужно
+        versionCode = 1
+        versionName = "1.0.0"
         multiDexEnabled = true
     }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-        // Обязательно для десугаринга Java 8+ API
         isCoreLibraryDesugaringEnabled = true
     }
 
@@ -38,17 +34,18 @@ android {
         jvmTarget = "11"
     }
 
-    // Загрузка ключей подписи, если есть key.properties
+    // Загрузка ключей подписи из key.properties
     val props = Properties()
     val propFile = rootProject.file("key.properties")
     if (propFile.exists()) {
         props.load(FileInputStream(propFile))
         signingConfigs {
             create("release") {
-                keyAlias = props["keyAlias"] as String
-                keyPassword = props["keyPassword"] as String
-                storeFile = file(props["storeFile"] as String)
-                storePassword = props["storePassword"] as String
+                // Читаем именно те ключи, которые должны быть в key.properties
+                keyAlias     = props.getProperty("keyAlias")
+                keyPassword  = props.getProperty("keyPassword")
+                storeFile    = file(props.getProperty("storeFile")!!)
+                storePassword= props.getProperty("storePassword")
             }
         }
     }
@@ -72,7 +69,6 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("androidx.multidex:multidex:2.0.1")
 }

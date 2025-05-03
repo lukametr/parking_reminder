@@ -1,4 +1,3 @@
-
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
@@ -62,7 +61,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '910421011591',
     projectId: 'parking-reminder-a94ff',
     storageBucket: 'parking-reminder-a94ff.firebasestorage.app',
-    iosBundleId: 'com.example.ParkingReminder',
+    iosBundleId: 'com.findall.ParkingReminder',
   );
-
 }

@@ -1,50 +1,98 @@
+// lib/screens/splash_screen.dart
+
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:external_app_launcher/external_app_launcher.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-
 import 'package:parking_reminder/firebase_options.dart';
-import 'package:parking_reminder/background/background_service.dart';
+import 'package:parking_reminder/services/background_service.dart';
+import 'package:parking_reminder/services/location_service.dart';
+import 'package:parking_reminder/services/notification_service.dart';
+import 'package:parking_reminder/utils/zone_utils.dart';
+import 'package:parking_reminder/notifications/overlay_notification.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  const SplashScreen({Key? key}) : super(key: key);
+
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
 class _SplashScreenState extends State<SplashScreen>
     with WidgetsBindingObserver {
-  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
+  static const _minimizeChannel =
+      MethodChannel('com.findall.ParkingReminder/minimize');
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _initApp();
-    _initializeNotifications();
+    _initializeApp();
   }
 
-  Future<void> _initApp() async {
-    WidgetsFlutterBinding.ensureInitialized();
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+  Future<void> _initializeApp() async {
+    try {
+      // 1) Firebase
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
 
+      // 2) Фоновый сервис
+      await BackgroundService.initialize();
+      await BackgroundService.start();
+
+      // 3) Запрос прав на геолокацию
+      await _ensureLocationPermission();
+
+      // 4) Получаем позицию
+      final Position? pos = await LocationService.getCurrentPosition();
+
+      // 5) Если в зоне парковки — показываем уведомление
+      if (pos != null &&
+          ZoneUtils.isInParkingZone(pos.latitude, pos.longitude)) {
+        await NotificationService.showInit(pos);
+
+        if (mounted) {
+          OverlayNotification.show(
+            context: context,
+            title: 'პარკირების ზონა',
+            message: 'გსურთ პარკირების დაწყება?',
+            duration: const Duration(seconds: 10),
+            icon: const Icon(
+              Icons.directions_car,
+              color: Colors.white,
+              size: 28,
+            ),
+            onConfirm: () => NotificationService.handleAction('park'),
+            onCancel: () => NotificationService.handleAction('cancel'),
+            onExit: () => NotificationService.handleAction('exit'),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Initialization error: $e');
+      await _terminateApp();
+    }
+  }
+
+  Future<void> _ensureLocationPermission() async {
     LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
       permission = await Geolocator.requestPermission();
     }
+    if (Platform.isAndroid && await _isAndroid12OrHigher()) {
+      if (permission == LocationPermission.whileInUse) {
+        permission = await Geolocator.requestPermission();
+      }
+    }
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
       await showDialog(
-        // ignore: use_build_context_synchronously
         context: context,
+        barrierDismissible: false,
         builder: (_) => AlertDialog(
           title: const Text('გეოლოკაციაზე წვდომა აუცილებელია'),
           content: const Text(
@@ -58,42 +106,48 @@ class _SplashScreenState extends State<SplashScreen>
           ],
         ),
       );
-      return;
+      throw Exception('Location permission denied');
     }
-
     if (Platform.isAndroid) {
-      bool backAllowed = await Geolocator.isLocationServiceEnabled();
-      if (!backAllowed) {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
         await Geolocator.openAppSettings();
-        backAllowed = await Geolocator.isLocationServiceEnabled();
-        if (!backAllowed) return;
+        serviceEnabled = await Geolocator.isLocationServiceEnabled();
+        if (!serviceEnabled) throw Exception('Location services disabled');
       }
     }
-
-    await initializeBackgroundService();
   }
 
-  Future<void> _initializeNotifications() async {
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-
-    const InitializationSettings initializationSettings =
-        InitializationSettings(android: initializationSettingsAndroid);
-
-    await flutterLocalNotificationsPlugin.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: _onNotificationResponse,
-    );
+  Future<bool> _isAndroid12OrHigher() async {
+    if (Platform.isAndroid) {
+      final int? sdk =
+          await _minimizeChannel.invokeMethod<int>('getSDKVersion');
+      return (sdk ?? 0) >= 31;
+    }
+    return false;
   }
 
-  void _onNotificationResponse(NotificationResponse response) async {
-    if (response.payload == 'start_parking') {
-      await LaunchApp.openApp(
-        androidPackageName: 'com.example.parkingapp',
-        openStore: true,
-      );
-    } else if (response.payload == 'cancel_parking') {
-      await flutterLocalNotificationsPlugin.cancelAll();
+  Future<void> _terminateApp() async {
+    try {
+      BackgroundService.stop();
+      await NotificationService.cancelAll();
+      if (Platform.isAndroid) {
+        SystemNavigator.pop(animated: true);
+      } else {
+        exit(0);
+      }
+    } catch (e) {
+      debugPrint('Termination error: $e');
+      exit(1);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      BackgroundService.start();
+    } else {
+      BackgroundService.stop();
     }
   }
 
@@ -104,46 +158,7 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    final service = FlutterBackgroundService();
-    service.invoke(
-      'setForeground',
-      {'value': state == AppLifecycleState.resumed},
-    );
-  }
-
-  void _showInfoDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('ℹ გამოყენების რჩევები'),
-        content: const SingleChildScrollView(
-          child: Text(
-            '''
-📌 აპლიკაციის გამართული მუშაობისთვის გთხოვთ:
-
-• ჩართოთ Wi-Fi და მობილური ინტერნეტი
-• ჩართოთ გეოლოკაცია (Location Services)  
-• გამორთოთ ელემენტის დაზოგვის რეჟიმი  
-• არ დახუროთ აპლიკაცია სრულად
-• გადაამოწმოთ შეტყობინებების ჩართვა
-            ''',
-            style: TextStyle(fontSize: 16),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('დახურვა'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // ignore: deprecated_member_use
     return WillPopScope(
       onWillPop: () async => false,
       child: Scaffold(
@@ -153,33 +168,56 @@ class _SplashScreenState extends State<SplashScreen>
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.remove, color: Colors.white),
-            onPressed: () => SystemChannels.platform
-                .invokeMethod('SystemNavigator.pop'),
+            onPressed: () async {
+              try {
+                await _minimizeChannel.invokeMethod('moveTaskToBack');
+              } catch (_) {
+                SystemNavigator.pop();
+              }
+            },
           ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.info_outline, color: Colors.white),
-              onPressed: _showInfoDialog,
-            ),
-            IconButton(
               icon: const Icon(Icons.close, color: Colors.white),
-              onPressed: () => SystemNavigator.pop(),
+              onPressed: _terminateApp,
             ),
           ],
         ),
         body: Stack(
           children: [
+            // Фоновое изображение
             Image.asset(
               'assets/background_image.jpg',
               fit: BoxFit.cover,
               width: double.infinity,
               height: double.infinity,
             ),
+            // Центрированный грузинский текст
             const Center(
               child: Text(
-                'ზონალური პარკირების\nკონტროლის სისტემა\n\nაპლიკაცია მუშაობს ფონურ რეჟიმში\nშეგილიათ ჩახუროთ და ავტომატურად ჩაირთვება ზონალურ პარკირებაზე დადგომისას.',
-                style: TextStyle(color: Colors.white, fontSize: 18),
+                'ზონალური პარკირების\n'
+                'კონტროლის სისტéma\n\n'
+                'აპლიკაცია მუშაობს ფონურ რეჟიმში\n'
+                'შეგიძლიათ დახუროთ და ავტომატურად\n'
+                'ჩაირთვება ზონალურ პარკირებაზე დადგომისას.',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  height: 1.4,
+                ),
                 textAlign: TextAlign.center,
+              ),
+            ),
+            // Спиннер внизу экрана
+            const Positioned(
+              bottom: 40,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: CircularProgressIndicator(
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
               ),
             ),
           ],

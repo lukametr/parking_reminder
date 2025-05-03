@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.example.ParkingReminder"> <!-- Замените на актуальный package вашего приложения -->
+    package="com.findall.ParkingReminder"> <!-- Исправлено com.example на com.findall -->
 
     <!-- Разрешения для геолокации и автостарта -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -11,6 +11,8 @@
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
     <!-- Запросы, необходимые для работы приложения -->
     <queries>
@@ -65,12 +67,25 @@
             android:value="2" />
 
         <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~6300978111"/>
+
+        <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="my_foreground"/>
         
         <service
             android:name="com.it_nomads.fluttersecurebackground.FlutterSecureBackgroundService"
             android:exported="false"/>
+
+            
+        <service
+            android:name="com.example.app.FlutterBackgroundService"
+            android:foregroundServiceType="location"
+            android:enabled="true"
+            android:exported="false"/>
+
+        <uses-library android:name="org.apache.http.legacy" android:required="false"/>
     </application>
 
     <!-- Дополнительные запросы -->

@@ -21,6 +21,9 @@ dependencies:
   cupertino_icons: ^1.0.8
   external_app_launcher: ^4.0.3
   simple_kalman: ^1.0.2
+  google_mobile_ads: ^6.0.0
+  rxdart: ^0.27.7
+  flutter_background_service_android: ^6.3.0
 
 dev_dependencies:
   flutter_test:

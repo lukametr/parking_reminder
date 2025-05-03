@@ -6,8 +6,7 @@ class ParkingService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Distance _distance = const Distance();
 
-  /// Проверка близости пользователя к парковкам из Firestore
-  /// Если в радиусе 30 м, возвращает номер лота, иначе null
+
   Future<String?> checkProximity(Position userLocation) async {
     try {
       final snapshot = await _firestore.collection('parkings').get();
@@ -20,7 +19,7 @@ class ParkingService {
         final parkLatLng = LatLng(geoPoint.latitude, geoPoint.longitude);
         final distMeters = _distance(userLatLng, parkLatLng);
 
-        if (distMeters <= 30) {
+        if (distMeters <= 15) {
           return lotNumber;
         }
       }

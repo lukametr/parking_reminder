@@ -1,0 +1,25 @@
+#Thu Apr 24 21:41:42 GET 2025
+path.4=3/classes.dex
+path.3=1/classes.dex
+path.2=0/classes.dex
+path.1=0/classes.dex
+path.7=classes3.dex
+path.6=classes2.dex
+path.5=classes1000.dex
+path.0=classes.dex
+base.4=C\:\\Users\\lukacode\\Desktop\\parking_reminder\\android\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\3\\classes.dex
+base.3=C\:\\Users\\lukacode\\Desktop\\parking_reminder\\android\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\1\\classes.dex
+base.2=C\:\\Users\\lukacode\\Desktop\\parking_reminder\\android\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\0\\classes.dex
+base.1=C\:\\Users\\lukacode\\Desktop\\parking_reminder\\android\\app\\build\\intermediates\\dex\\debug\\mergeLibDexDebug\\0\\classes.dex
+base.0=C\:\\Users\\lukacode\\Desktop\\parking_reminder\\android\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes.dex
+renamed.3=classes4.dex
+renamed.2=classes3.dex
+renamed.1=classes2.dex
+renamed.0=classes.dex
+renamed.7=classes8.dex
+renamed.6=classes7.dex
+base.7=C\:\\Users\\lukacode\\Desktop\\parking_reminder\\android\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes3.dex
+renamed.5=classes6.dex
+base.6=C\:\\Users\\lukacode\\Desktop\\parking_reminder\\android\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes2.dex
+renamed.4=classes5.dex
+base.5=C\:\\Users\\lukacode\\Desktop\\parking_reminder\\android\\app\\build\\intermediates\\desugar_lib_dex\\debug\\l8DexDesugarLibDebug\\classes1000.dex

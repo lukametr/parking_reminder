@@ -1,0 +1,74 @@
+[
+    {
+        "merged": "com.findall.ParkingReminder.app-debug-56:/drawable-xxxhdpi_ic_custom.png.flat",
+        "source": "com.findall.ParkingReminder.app-main-58:/drawable-xxxhdpi/ic_custom.png"
+    },
+    {
+        "merged": "com.findall.ParkingReminder.app-debug-56:/mipmap-mdpi_ic_custom.png.flat",
+        "source": "com.findall.ParkingReminder.app-main-58:/mipmap-mdpi/ic_custom.png"
+    },
+    {
+        "merged": "com.findall.ParkingReminder.app-debug-56:/drawable-xhdpi_ic_custom.png.flat",
+        "source": "com.findall.ParkingReminder.app-main-58:/drawable-xhdpi/ic_custom.png"
+    },
+    {
+        "merged": "com.findall.ParkingReminder.app-debug-56:/mipmap-xxhdpi_ic_launcher.png.flat",
+        "source": "com.findall.ParkingReminder.app-main-58:/mipmap-xxhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.findall.ParkingReminder.app-debug-56:/mipmap-xxxhdpi_ic_launcher.png.flat",
+        "source": "com.findall.ParkingReminder.app-main-58:/mipmap-xxxhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.findall.ParkingReminder.app-debug-56:/drawable-hdpi_ic_custom.png.flat",
+        "source": "com.findall.ParkingReminder.app-main-58:/drawable-hdpi/ic_custom.png"
+    },
+    {
+        "merged": "com.findall.ParkingReminder.app-debug-56:/mipmap-hdpi_ic_launcher.png.flat",
+        "source": "com.findall.ParkingReminder.app-main-58:/mipmap-hdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.findall.ParkingReminder.app-debug-56:/mipmap-xhdpi_ic_launcher.png.flat",
+        "source": "com.findall.ParkingReminder.app-main-58:/mipmap-xhdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.findall.ParkingReminder.app-debug-56:/drawable-xxhdpi_ic_custom.png.flat",
+        "source": "com.findall.ParkingReminder.app-main-58:/drawable-xxhdpi/ic_custom.png"
+    },
+    {
+        "merged": "com.findall.ParkingReminder.app-debug-56:/drawable-v21_launch_background.xml.flat",
+        "source": "com.findall.ParkingReminder.app-main-58:/drawable-v21/launch_background.xml"
+    },
+    {
+        "merged": "com.findall.ParkingReminder.app-debug-56:/mipmap-hdpi_ic_custom.png.flat",
+        "source": "com.findall.ParkingReminder.app-main-58:/mipmap-hdpi/ic_custom.png"
+    },
+    {
+        "merged": "com.findall.ParkingReminder.app-debug-56:/mipmap-xhdpi_ic_custom.png.flat",
+        "source": "com.findall.ParkingReminder.app-main-58:/mipmap-xhdpi/ic_custom.png"
+    },
+    {
+        "merged": "com.findall.ParkingReminder.app-debug-56:/mipmap-xxhdpi_ic_custom.png.flat",
+        "source": "com.findall.ParkingReminder.app-main-58:/mipmap-xxhdpi/ic_custom.png"
+    },
+    {
+        "merged": "com.findall.ParkingReminder.app-debug-56:/drawable-v21_ic_custom.png.flat",
+        "source": "com.findall.ParkingReminder.app-main-58:/drawable-v21/ic_custom.png"
+    },
+    {
+        "merged": "com.findall.ParkingReminder.app-debug-56:/drawable-mdpi_ic_custom.png.flat",
+        "source": "com.findall.ParkingReminder.app-main-58:/drawable-mdpi/ic_custom.png"
+    },
+    {
+        "merged": "com.findall.ParkingReminder.app-debug-56:/mipmap-mdpi_ic_launcher.png.flat",
+        "source": "com.findall.ParkingReminder.app-main-58:/mipmap-mdpi/ic_launcher.png"
+    },
+    {
+        "merged": "com.findall.ParkingReminder.app-debug-56:/mipmap-xxxhdpi_ic_custom.png.flat",
+        "source": "com.findall.ParkingReminder.app-main-58:/mipmap-xxxhdpi/ic_custom.png"
+    },
+    {
+        "merged": "com.findall.ParkingReminder.app-debug-56:/raw_notification_beep.mp3.flat",
+        "source": "com.findall.ParkingReminder.app-main-58:/raw/notification_beep.mp3"
+    }
+]
