@@ -10,126 +10,207 @@ import 'package:parking_reminder/firebase_options.dart';
 import 'package:parking_reminder/services/background_service.dart';
 import 'package:parking_reminder/services/location_service.dart';
 import 'package:parking_reminder/services/notification_service.dart';
-import 'package:parking_reminder/utils/zone_utils.dart';
+import 'package:parking_reminder/services/parking_service.dart';
 import 'package:parking_reminder/notifications/overlay_notification.dart';
+import 'package:external_app_launcher/external_app_launcher.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:parking_reminder/services/ad_manager.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
-    with WidgetsBindingObserver {
-  static const _minimizeChannel =
-      MethodChannel('com.findall.ParkingReminder/minimize');
+class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver {
+  static const _minimizeChannel = MethodChannel('com.findall.ParkingReminder/minimize');
+  final ParkingService _parkingService = ParkingService();
+  bool _isLoading = true;
+  late final AdManager _adManager;
+  BannerAd? _bannerAd;
+  Timer? _locationCheckTimer;
+  String? _lastOverlayLots;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _adManager = AdManager();
+    _adManager.loadBannerAd();
+    Future.delayed(const Duration(milliseconds: 500), () {
+      setState(() {
+        _bannerAd = _adManager.bannerAd;
+      });
+    });
     _initializeApp();
+    _startForegroundLocationCheck();
   }
 
   Future<void> _initializeApp() async {
-    try {
-      // 1) Firebase
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
+    setState(() => _isLoading = true);
 
-      // 2) Фоновый сервис
+    try {
+      // 1. Firebase
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+      // 2. NOTIFICATIONS
+      await NotificationService.initialize(onActionCallback: _onNotificationAction);
+
+      // 3. BACKGROUND SERVICE
       await BackgroundService.initialize();
       await BackgroundService.start();
 
-      // 3) Запрос прав на геолокацию
-      await _ensureLocationPermission();
+      // 4. REQUEST PERMISSIONS
+      if (!await _ensureLocationPermission()) return;
 
-      // 4) Получаем позицию
-      final Position? pos = await LocationService.getCurrentPosition();
+      // 5. CURRENT POSITION (with Kalman filtering)
+      final pos = await LocationService.getCurrentPosition(filtered: true);
+      if (pos == null) return;
 
-      // 5) Если в зоне парковки — показываем уведомление
-      if (pos != null &&
-          ZoneUtils.isInParkingZone(pos.latitude, pos.longitude)) {
-        await NotificationService.showInit(pos);
-
-        if (mounted) {
-          OverlayNotification.show(
-            context: context,
-            title: 'პარკირების ზონა',
-            message: 'გსურთ პარკირების დაწყება?',
-            duration: const Duration(seconds: 10),
-            icon: const Icon(
-              Icons.directions_car,
-              color: Colors.white,
-              size: 28,
-            ),
-            onConfirm: () => NotificationService.handleAction('park'),
-            onCancel: () => NotificationService.handleAction('cancel'),
-            onExit: () => NotificationService.handleAction('exit'),
-          );
-        }
+      // 6. Check proximity through ParkingService (3–5 m)
+      double proximityRadius = 5;
+      try {
+        final stopped = LocationService.kalmanFilter.stoppedDuration;
+        if (stopped.inSeconds > 5) proximityRadius = 10;
+      } catch (_) {}
+      final lots = await _parkingService.checkProximity(pos, proximityRadius: proximityRadius);
+      if (lots.isNotEmpty && mounted) {
+        _showParkingNotification(pos, lots);
       }
+
+
     } catch (e) {
-      debugPrint('Initialization error: $e');
+      debugPrint('ERROR INITIALIZATION: $e');
       await _terminateApp();
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _ensureLocationPermission() async {
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      permission = await Geolocator.requestPermission();
+  Future<bool> _ensureLocationPermission() async {
+    var perm = await Geolocator.checkPermission();
+    if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
+      perm = await Geolocator.requestPermission();
     }
-    if (Platform.isAndroid && await _isAndroid12OrHigher()) {
-      if (permission == LocationPermission.whileInUse) {
-        permission = await Geolocator.requestPermission();
+    if (Platform.isAndroid && await _isAndroid12Plus()) {
+      if (perm == LocationPermission.whileInUse) {
+        perm = await Geolocator.requestPermission();
       }
     }
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
+    if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
       await showDialog(
+        // ignore: use_build_context_synchronously
         context: context,
         barrierDismissible: false,
         builder: (_) => AlertDialog(
-          title: const Text('გეოლოკაციაზე წვდომა აუცილებელია'),
-          content: const Text(
-            'აპლიკაციის გასაშვებად საჭიროა წვდომა გეოლოკაციაზე.',
-          ),
+          title: const Text('LOCATION REQUIRED'),
+          content: const Text('Without access to location, the application will not work.'),
           actions: [
-            TextButton(
-              onPressed: () => SystemNavigator.pop(),
-              child: const Text('დახურვა'),
-            ),
+            TextButton(onPressed: () => SystemNavigator.pop(), child: const Text('დახურვა')),
           ],
         ),
       );
-      throw Exception('Location permission denied');
+      return false;
     }
     if (Platform.isAndroid) {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        await Geolocator.openAppSettings();
-        serviceEnabled = await Geolocator.isLocationServiceEnabled();
-        if (!serviceEnabled) throw Exception('Location services disabled');
+      var enabled = await Geolocator.isLocationServiceEnabled();
+      if (!enabled) {
+        await Geolocator.openLocationSettings();
+        enabled = await Geolocator.isLocationServiceEnabled();
+        if (!enabled) return false;
       }
+    }
+    return true;
+  }
+
+  Future<bool> _isAndroid12Plus() async {
+    if (!Platform.isAndroid) return false;
+    final sdk = await _minimizeChannel.invokeMethod<int>('getSDKVersion');
+    return (sdk ?? 0) >= 31;
+  }
+
+  void _showParkingNotification(Position pos, List<String> lots) {
+    final lotsText = lots.join(' ან ');
+    OverlayNotification.show(
+      context: context,
+      title: 'ზონალური პარკირების ზონა № $lotsText',
+      message: 'გსურთ პარკირების დაწყება?',
+      duration: const Duration(seconds: 10),
+      icon: const Icon(Icons.directions_car, color: Colors.white, size: 28),
+      onConfirm: () => _onNotificationAction('park', lotsText),
+      onCancel: () => _onNotificationAction('cancel', null),
+      onExit: () => _onNotificationAction('exit', null),
+      persistent: true,
+    );
+  }
+
+  void _onNotificationAction(String action, String? payload) async {
+    switch (action) {
+      case 'park':
+        if (payload != null && payload.isNotEmpty) {
+          _startParking(payload);
+        }
+        break;
+      case 'cancel':
+        // foreground-ში უარყოფის შემთხვევაში 30 წუთით დავბლოკოთ ეს ლოტი
+        if (payload != null && payload.isNotEmpty) {
+          final prefs = await SharedPreferences.getInstance();
+          final blockedLots = prefs.getStringList('blockedLots') ?? [];
+          final blockedTimes = prefs.getStringList('blockedTimes') ?? [];
+          blockedLots.add(payload);
+          blockedTimes.add(DateTime.now().millisecondsSinceEpoch.toString());
+          await prefs.setStringList('blockedLots', blockedLots);
+          await prefs.setStringList('blockedTimes', blockedTimes);
+        }
+        break;
+      case 'exit':
+        _terminateApp();
+        break;
     }
   }
 
-  Future<bool> _isAndroid12OrHigher() async {
-    if (Platform.isAndroid) {
-      final int? sdk =
-          await _minimizeChannel.invokeMethod<int>('getSDKVersion');
-      return (sdk ?? 0) >= 31;
+  Future<void> _startParking(String lotNumber) async {
+    final mainLot = lotNumber.split(' ან ').first;
+    await _parkingService.saveUserParking(
+      lotNumber: mainLot,
+      latitude: 0, longitude: 0, startTime: DateTime.now(),
+    );
+    NotificationService.showSimpleNotification(
+      title: 'პარკირება დაწყებულია',
+      message: 'ლოტი ნომერი № $mainLot',
+    );
+    _openParkingAppOrStore();
+  }
+
+  Future<void> _openParkingAppOrStore() async {
+    const packageName = 'ge.msda.parking';
+    try {
+      final didLaunch = await LaunchApp.openApp(
+        androidPackageName: packageName,
+        openStore: false,
+      );
+      if (didLaunch != 1) {
+        // თუ აპი არ არის, გავხსნათ Play Store
+        final url = 'https://play.google.com/store/apps/details?id=ge.msda.parking';
+        if (await canLaunchUrl(Uri.parse(url))) {
+          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+        }
+      }
+    } catch (e) {
+      // fallback: გახსენი Play Store
+      final url = 'https://play.google.com/store/apps/details?id=ge.msda.parking';
+      if (await canLaunchUrl(Uri.parse(url))) {
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      }
     }
-    return false;
   }
 
   Future<void> _terminateApp() async {
     try {
-      BackgroundService.stop();
+      await BackgroundService.forceStop();
       await NotificationService.cancelAll();
       if (Platform.isAndroid) {
         SystemNavigator.pop(animated: true);
@@ -137,28 +218,69 @@ class _SplashScreenState extends State<SplashScreen>
         exit(0);
       }
     } catch (e) {
-      debugPrint('Termination error: $e');
       exit(1);
     }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      BackgroundService.start();
-    } else {
-      BackgroundService.stop();
-    }
+    if (state == AppLifecycleState.resumed) BackgroundService.start();
+  }
+
+  void _startForegroundLocationCheck() {
+    _locationCheckTimer?.cancel();
+    _locationCheckTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      if (!mounted) return;
+      // foreground-ში ვართ თუ არა
+      if (ModalRoute.of(context)?.isCurrent != true) return;
+      // overlay თუ უკვე ჩანს, აღარ გამოვიძახოთ
+      if (OverlayNotification.isVisible) return;
+      final pos = await LocationService.getCurrentPosition(filtered: true);
+      if (pos == null) return;
+      double proximityRadius = 5;
+      try {
+        final stopped = LocationService.kalmanFilter.stoppedDuration;
+        if (stopped.inSeconds > 5) proximityRadius = 10;
+      } catch (_) {}
+      final lots = await _parkingService.checkProximity(pos, proximityRadius: proximityRadius);
+      if (lots.isNotEmpty) {
+        final lotsText = lots.join(' ან ');
+        // foreground-ში ბლოკირების შემოწმება
+        final prefs = await SharedPreferences.getInstance();
+        final blockedLots = prefs.getStringList('blockedLots') ?? [];
+        final blockedTimes = prefs.getStringList('blockedTimes') ?? [];
+        final now = DateTime.now().millisecondsSinceEpoch;
+        bool isBlocked = false;
+        for (int i = 0; i < blockedLots.length; i++) {
+          final lot = blockedLots[i];
+          final blockTime = int.tryParse(blockedTimes[i] ?? '0') ?? 0;
+          if (now - blockTime < 30 * 60 * 1000 && lotsText.contains(lot)) {
+            isBlocked = true;
+            break;
+          }
+        }
+        if (isBlocked) return;
+        if (_lastOverlayLots != lotsText) {
+          _lastOverlayLots = lotsText;
+          _showParkingNotification(pos, lots);
+        }
+      } else {
+        _lastOverlayLots = null;
+      }
+    });
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _adManager.disposeBanner();
+    _locationCheckTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // ignore: deprecated_member_use
     return WillPopScope(
       onWillPop: () async => false,
       child: Scaffold(
@@ -166,17 +288,59 @@ class _SplashScreenState extends State<SplashScreen>
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.remove, color: Colors.white),
-            onPressed: () async {
-              try {
-                await _minimizeChannel.invokeMethod('moveTaskToBack');
-              } catch (_) {
-                SystemNavigator.pop();
-              }
-            },
-          ),
           actions: [
+            IconButton(
+              icon: const Icon(Icons.info, color: Colors.white),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    title: const Text('ინფორმაცია', style: TextStyle(fontWeight: FontWeight.bold)),
+                    content: const SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('• აპლიკაცია მუშაობს ფონურ რეჟიმში და საჭიროებს მუდმივ ლოკაციის წვდომას.'),
+                          SizedBox(height: 8),
+                          Text('• შეტყობინებები აუცილებელია, რომ არ გამოტოვოთ პარკინგის გაფრთხილება.'),
+                          SizedBox(height: 8),
+                          Text('• თუ აპი არ მუშაობს სწორად, გადაამოწმეთ ნებართვები და ჩართეთ "Location" და "Notifications".'),
+                          SizedBox(height: 8),
+                          Text('• პარკინგის დატოვებისას მიიღებთ დამატებით შეტყობინებას.'),
+                          SizedBox(height: 8),
+                          Text('• აპი არ აგროვებს და არ ინახავს თქვენს პირად მონაცემებს.'),
+                          SizedBox(height: 8),
+                          Text('• რეკომენდირებულია ოფიციალური პარკინგის აპის დაყენება სწრაფი გადახდისთვის.'),
+                          SizedBox(height: 16),
+                          Divider(),
+                          SizedBox(height: 8),
+                          Text('პირადი მონაცემების დაცვის პოლიტიკა', style: TextStyle(fontWeight: FontWeight.bold)),
+                          SizedBox(height: 4),
+                          Text('აპლიკაცია იყენებს თქვენს ადგილმდებარეობას მხოლოდ პარკინგის სერვისის გასაუმჯობესებლად. თქვენი მონაცემები არ ინახება და არ გადაეცემა მესამე პირებს. აპლიკაცია ითხოვს მხოლოდ აუცილებელ ნებართვებს და იყენებს მათ მხოლოდ ფუნქციონალობისთვის.'),
+                        ],
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('დახურვა'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.remove, color: Colors.white),
+              onPressed: () async {
+                try {
+                  await _minimizeChannel.invokeMethod('moveTaskToBack');
+                } catch (_) {
+                  SystemNavigator.pop();
+                }
+              },
+            ),
             IconButton(
               icon: const Icon(Icons.close, color: Colors.white),
               onPressed: _terminateApp,
@@ -185,41 +349,33 @@ class _SplashScreenState extends State<SplashScreen>
         ),
         body: Stack(
           children: [
-            // Фоновое изображение
-            Image.asset(
-              'assets/background_image.jpg',
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-            ),
-            // Центрированный грузинский текст
+            Image.asset('assets/background_image.jpg', fit: BoxFit.cover, width: double.infinity, height: double.infinity),
             const Center(
               child: Text(
                 'ზონალური პარკირების\n'
-                'კონტროლის სისტéma\n\n'
+                'კონტროლის სისტემა\n\n\n\n'
                 'აპლიკაცია მუშაობს ფონურ რეჟიმში\n'
                 'შეგიძლიათ დახუროთ და ავტომატურად\n'
-                'ჩაირთვება ზონალურ პარკირებაზე დადგომისას.',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  height: 1.4,
-                ),
+                'ჩაირთვება ზონალურ პარკირაზე დადგომისას.',
+                style: TextStyle(color: Colors.white, fontSize: 18, height: 1.4),
                 textAlign: TextAlign.center,
               ),
             ),
-            // Спиннер внизу экрана
-            const Positioned(
-              bottom: 40,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: CircularProgressIndicator(
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(Colors.white),
+            if (_isLoading)
+              const Positioned(
+                bottom: 40, left: 0, right: 0,
+                child: Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.white))),
+              ),
+            if (_bannerAd != null)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: SizedBox(
+                  height: _bannerAd!.size.height.toDouble(),
+                  child: AdWidget(ad: _bannerAd!),
                 ),
               ),
-            ),
           ],
         ),
       ),

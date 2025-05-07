@@ -1,86 +1,108 @@
+// lib/services/notification_service.dart
+
+import 'dart:async';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
 
-class NotificationService {
-  static final _plugin = FlutterLocalNotificationsPlugin();
-  
-  // 1. Константы для канала уведомлений
-  static const _channelId = 'parking_channel';
-  static const _channelName = 'Parking Alerts';
+typedef NotificationActionCallback = void Function(String action, String? payload);
 
-  static Future<void> initialize() async {
-    // 2. Инициализация иконки (без @)
-    const androidSettings = AndroidInitializationSettings('mipmap/ic_launcher');
-    
-    // 3. Создание канала уведомлений
-    const androidChannel = AndroidNotificationChannel(
-      _channelId,
-      _channelName,
-      importance: Importance.high,
-      description: 'Channel for parking notifications',
+class NotificationService {
+  static final _flnp = FlutterLocalNotificationsPlugin();
+  static late NotificationActionCallback _onActionCallback;
+
+  /// პლაგინის ინიციალიზაცია და callback-ის გადაცემა, რომლითაც ვიგებთ მომხმარებლის ქმედებას შეტყობინებაზე
+  static Future<void> initialize({
+    required NotificationActionCallback onActionCallback,
+  }) async {
+    _onActionCallback = onActionCallback;
+
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosInit = DarwinInitializationSettings();
+    const initSettings = InitializationSettings(
+      android: androidInit,
+      iOS: iosInit,
     );
-    
-    await _plugin.initialize(
-      const InitializationSettings(android: androidSettings),
-      onDidReceiveNotificationResponse: (response) {
-        handleAction(response.actionId ?? response.payload ?? '');
+
+    await _flnp.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        // actionId: 'park', 'cancel', 'tap' (ღილაკის ან notification-ის დაჭერა)
+        final action = response.actionId?.isNotEmpty == true ? response.actionId : 'tap';
+        final payload = response.payload;
+        _onActionCallback(action!, payload);
       },
     );
-
-    // 4. Создаем канал для Android 8+
-    await _plugin
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(androidChannel);
   }
 
-  static Future<void> showInit(Position pos) async {
-    // 5. Используем константы канала
-    const details = AndroidNotificationDetails(
-      _channelId,
-      _channelName,
-      importance: Importance.high,
+  /// მარტივი შეტყობინება, მხოლოდ სათაურით და ტექსტით (ღილაკების გარეშე)
+  static Future<void> showSimpleNotification({
+    required String title,
+    required String message,
+  }) async {
+    const androidDetails = AndroidNotificationDetails(
+      'simple_channel',
+      'Simple Notifications',
+      importance: Importance.max,
       priority: Priority.high,
-      actions: [
-        AndroidNotificationAction('park', 'პარკირება'),
-        AndroidNotificationAction('cancel', 'გამოტოვება'),
+      icon: '@mipmap/ic_custom',
+    );
+    const iosDetails = DarwinNotificationDetails();
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _flnp.show(
+      0,
+      title,
+      message,
+      details,
+      payload: 'tap',
+    );
+  }
+
+  /// პარკირების შეტყობინება: Android-ზე გამოდის ღილაკებით, iOS-ზე მხოლოდ ტექსტით
+  static Future<void> showParkingNotification({
+    required Position position,
+    required String lotNumber,
+  }) async {
+    final title = 'პარკირების ზონა №  $lotNumber';
+    const body = 'გსურთ პარკირების დაწყება?';
+
+    // Для Android — добавляем две action-кнопки
+    const androidDetails = AndroidNotificationDetails(
+      'parking_channel',
+      'Parking Notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+      icon: '@mipmap/ic_custom',
+      sound: RawResourceAndroidNotificationSound('funny_minion'),
+      actions: <AndroidNotificationAction>[
+        AndroidNotificationAction('park', 'დადასტურება'),
+        AndroidNotificationAction('cancel', 'გაუქმება'),
       ],
     );
-    
-    await _plugin.show(
-      DateTime.now().millisecondsSinceEpoch, // Уникальный ID
-      'პარკირების ზონა',
-      'გსურთ პარკირების დაწყება?',
-      NotificationDetails(android: details),
-      payload: '${pos.latitude},${pos.longitude}',
+    const iosDetails = DarwinNotificationDetails();
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    // payload передает lotNumber, а действие — идентификатор кнопки
+    await _flnp.show(
+      1,
+      title,
+      body,
+      details,
+      payload: lotNumber,
     );
   }
 
-  // 6. Улучшенная обработка действий
-  static void handleAction(String actionId) {
-    switch (actionId) {
-      case 'park':
-        _startParking();
-        break;
-      case 'cancel':
-        _skipParking();
-        break;
-      default:
-        _handleNotificationTap();
-    }
+  /// ქმედების ხელით გამოძახება, თუ საჭიროა კოდიდან პირდაპირი დამუშავება
+  static void handleAction(String action, [String? payload]) {
+    _onActionCallback(action, payload);
   }
 
-  static void _startParking() {
-    // Логика старта парковки
-  }
-
-  static void _skipParking() {
-    // Логика отмены
-  }
-
-  static void _handleNotificationTap() {
-    // Действие при тапе на уведомление
-  }
-
-  static Future<void> cancelAll() => _plugin.cancelAll();
+  /// ყველა შეტყობინების გაუქმება
+  static Future<void> cancelAll() => _flnp.cancelAll();
 }

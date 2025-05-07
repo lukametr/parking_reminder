@@ -9,20 +9,20 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  firebase_core: ^2.28.0
-  firebase_messaging: ^14.8.0
-  cloud_firestore: ^4.15.1
-  geolocator: ^11.1.0
-  latlong2: ^0.9.0
-  shared_preferences: ^2.2.2
-  url_launcher: ^6.2.1
+  firebase_core: ^3.13.0
+  firebase_messaging: ^15.2.5
+  cloud_firestore: ^5.6.7
+  geolocator: ^14.0.0
+  latlong2: ^0.9.1
+  shared_preferences: ^2.5.3
+  url_launcher: ^6.3.1
   flutter_background_service: ^5.1.0
-  flutter_local_notifications: ^18.0.1
+  flutter_local_notifications: ^19.1.0
   cupertino_icons: ^1.0.8
   external_app_launcher: ^4.0.3
   simple_kalman: ^1.0.2
   google_mobile_ads: ^6.0.0
-  rxdart: ^0.27.7
+  rxdart: ^0.28.0
   flutter_background_service_android: ^6.3.0
 
 dev_dependencies:

@@ -61,6 +61,10 @@ android {
             isShrinkResources = false
         }
     }
+
+    lint {
+        baseline = file("lint-baseline.xml")
+    }
 }
 
 flutter {

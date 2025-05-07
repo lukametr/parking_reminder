@@ -4,12 +4,12 @@ import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class AdManager {
-  // Замените на ваш реальный ID баннера
+  // ჩავანაცვლო ჩემი ID
   static const String bannerAdUnitId = 'ca-app-pub-3940256099942544/6300978111';
 
   BannerAd? _bannerAd;
 
-  /// Загружает баннер
+  /// LOAD BANNER
   void loadBannerAd() {
     _bannerAd = BannerAd(
       adUnitId: bannerAdUnitId,
@@ -25,10 +25,10 @@ class AdManager {
     )..load();
   }
 
-  /// Возвращает загруженный баннер, или null
+  /// RETURNS LOADED BANNER, OR NULL
   BannerAd? get bannerAd => _bannerAd;
 
-  /// Освобождает ресурсы баннера
+  /// DISPOSE BANNER RESOURCES
   void disposeBanner() {
     _bannerAd?.dispose();
   }

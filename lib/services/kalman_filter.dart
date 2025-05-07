@@ -4,40 +4,38 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:rxdart/rxdart.dart';
 
-/// Класс KalmanLocationFilter использует фильтр Калмана для сглаживания данных геолокации
-/// и обеспечения более точного определения местоположения, особенно когда пользователь
-/// не движется в течение определенного времени.
+
 class KalmanLocationFilter {
-  // Параметры фильтра Калмана
-  double _varGPS = 5.0; // Начальная дисперсия GPS (в метрах)
-  final double _varSpeed = 0.05; // Дисперсия скорости (м/с^2)
-  final double _timeThreshold = 5.0; // Порог времени для определения остановки (в секундах)
+  // Kalman filter-ის ძირითადი პარამეტრები: GPS-ის დისპერსია, სიჩქარის დისპერსია, გაჩერების დროის ზღვარი
+  double _varGPS = 5.0;
+  final double _varSpeed = 0.05;
+  final double _timeThreshold = 5.0;
   
   // Состояние фильтра
   double _latitude = 0.0;
   double _longitude = 0.0;
-  double _accuracy = 10.0; // Начальная точность в метрах
-  double _variance = 10.0; // Начальная дисперсия оценки
+  double _accuracy = 10.0;
+  double _variance = 10.0;
   DateTime? _lastUpdateTime;
   DateTime? _stoppedTime;
   bool _isStopped = false;
   
-  // Последнее полученное "лучшее" положение
+
   Position? _bestPosition;
   
-  /// Получить текущее отфильтрованное местоположение
+
   Position? get bestPosition => _bestPosition;
   
-  /// Получить флаг остановки
+
   bool get isStopped => _isStopped;
   
-  /// Получить время, в течение которого пользователь находится в неподвижном состоянии
+
   Duration get stoppedDuration {
     if (_stoppedTime == null) return Duration.zero;
     return DateTime.now().difference(_stoppedTime!);
   }
   
-  /// Инициализация фильтра с исходным положением
+
   void init(Position position) {
     _latitude = position.latitude;
     _longitude = position.longitude;
@@ -48,28 +46,26 @@ class KalmanLocationFilter {
     _varGPS = max(5.0, position.accuracy);
   }
   
-  /// Обработка нового местоположения через фильтр Калмана
-  /// и определение, находится ли пользователь в неподвижном состоянии
+
   Position process(Position position) {
-    // Если фильтр еще не инициализирован
+
     if (_lastUpdateTime == null) {
       init(position);
       return position;
     }
     
-    // Расчет времени с последнего обновления
+ 
     final DateTime now = DateTime.now();
     final double dt = _lastUpdateTime != null ? 
         now.difference(_lastUpdateTime!).inMilliseconds / 1000.0 : 0.0;
     _lastUpdateTime = now;
     
-    // Обновляем дисперсию с учетом времени
+
     _variance += _varSpeed * dt;
     
-    // Коэффициент Калмана (K)
+
     final double k = _variance / (_variance + _varGPS);
-    
-    // Обновляем положение с использованием фильтра Калмана
+
     _latitude += k * (position.latitude - _latitude);
     _longitude += k * (position.longitude - _longitude);
     
