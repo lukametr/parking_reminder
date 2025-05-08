@@ -17,6 +17,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:parking_reminder/services/ad_manager.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -33,6 +34,9 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
   BannerAd? _bannerAd;
   Timer? _locationCheckTimer;
   String? _lastOverlayLots;
+  Timer? _debounceTimer;
+  List<String> _pendingLots = [];
+  Position? _lastNotificationPosition;
 
   @override
   void initState() {
@@ -148,12 +152,17 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
   }
 
   void _onNotificationAction(String action, String? payload) async {
+    if (action == 'tap' || action == 'park') {
+      // foreground-ზე ამოყვანა და overlay პოპაპის გამოჩენა
+      if (!mounted) return;
+      if (payload != null && payload.isNotEmpty) {
+        _showParkingNotification(await LocationService.getCurrentPosition(filtered: true) ?? Position(
+          latitude: 0, longitude: 0, timestamp: DateTime.now(), accuracy: 0, altitude: 0, heading: 0, speed: 0, speedAccuracy: 0, altitudeAccuracy: 0, headingAccuracy: 0),
+          payload.split(' ან '));
+      }
+      return;
+    }
     switch (action) {
-      case 'park':
-        if (payload != null && payload.isNotEmpty) {
-          _startParking(payload);
-        }
-        break;
       case 'cancel':
         // foreground-ში უარყოფის შემთხვევაში 30 წუთით დავბლოკოთ ეს ლოტი
         if (payload != null && payload.isNotEmpty) {
@@ -165,6 +174,8 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
           await prefs.setStringList('blockedLots', blockedLots);
           await prefs.setStringList('blockedTimes', blockedTimes);
         }
+        // overlay/system notification გაქრეს
+        await NotificationService.cancelAll();
         break;
       case 'exit':
         _terminateApp();
@@ -229,11 +240,9 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
 
   void _startForegroundLocationCheck() {
     _locationCheckTimer?.cancel();
-    _locationCheckTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+    _locationCheckTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
       if (!mounted) return;
-      // foreground-ში ვართ თუ არა
       if (ModalRoute.of(context)?.isCurrent != true) return;
-      // overlay თუ უკვე ჩანს, აღარ გამოვიძახოთ
       if (OverlayNotification.isVisible) return;
       final pos = await LocationService.getCurrentPosition(filtered: true);
       if (pos == null) return;
@@ -244,28 +253,28 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
       } catch (_) {}
       final lots = await _parkingService.checkProximity(pos, proximityRadius: proximityRadius);
       if (lots.isNotEmpty) {
-        final lotsText = lots.join(' ან ');
-        // foreground-ში ბლოკირების შემოწმება
-        final prefs = await SharedPreferences.getInstance();
-        final blockedLots = prefs.getStringList('blockedLots') ?? [];
-        final blockedTimes = prefs.getStringList('blockedTimes') ?? [];
-        final now = DateTime.now().millisecondsSinceEpoch;
-        bool isBlocked = false;
-        for (int i = 0; i < blockedLots.length; i++) {
-          final lot = blockedLots[i];
-          final blockTime = int.tryParse(blockedTimes[i] ?? '0') ?? 0;
-          if (now - blockTime < 30 * 60 * 1000 && lotsText.contains(lot)) {
-            isBlocked = true;
-            break;
+        if (_lastNotificationPosition != null) {
+          final dist = Geolocator.distanceBetween(
+            pos.latitude, pos.longitude,
+            _lastNotificationPosition!.latitude, _lastNotificationPosition!.longitude,
+          );
+          if (dist < 50) return;
+        }
+        _pendingLots.addAll(lots);
+        _pendingLots = _pendingLots.toSet().toList();
+        _debounceTimer?.cancel();
+        _debounceTimer = Timer(const Duration(seconds: 2), () {
+          if (_pendingLots.isNotEmpty) {
+            final lotsText = _pendingLots.join(' ან ');
+            _lastOverlayLots = lotsText;
+            _lastNotificationPosition = pos;
+            _showParkingNotification(pos, _pendingLots);
+            _pendingLots.clear();
           }
-        }
-        if (isBlocked) return;
-        if (_lastOverlayLots != lotsText) {
-          _lastOverlayLots = lotsText;
-          _showParkingNotification(pos, lots);
-        }
+        });
       } else {
         _lastOverlayLots = null;
+        _pendingLots.clear();
       }
     });
   }
@@ -275,6 +284,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
     WidgetsBinding.instance.removeObserver(this);
     _adManager.disposeBanner();
     _locationCheckTimer?.cancel();
+    _debounceTimer?.cancel();
     super.dispose();
   }
 
@@ -303,11 +313,15 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
                         children: [
                           Text('• აპლიკაცია მუშაობს ფონურ რეჟიმში და საჭიროებს მუდმივ ლოკაციის წვდომას.'),
                           SizedBox(height: 8),
+                          Text('• ყოველთვის გადაამოწმეთ ლოტის ნომერი, აპლიკაცია შეიძლება შეცდეს GPS ცდომილების გამო.'),
+                          SizedBox(height: 8),
                           Text('• შეტყობინებები აუცილებელია, რომ არ გამოტოვოთ პარკინგის გაფრთხილება.'),
                           SizedBox(height: 8),
                           Text('• თუ აპი არ მუშაობს სწორად, გადაამოწმეთ ნებართვები და ჩართეთ "Location" და "Notifications".'),
                           SizedBox(height: 8),
                           Text('• პარკინგის დატოვებისას მიიღებთ დამატებით შეტყობინებას.'),
+                          SizedBox(height: 8),
+                          Text('• აპლიკაცია ჩართულ მდგომარეობაში 24 საათის განმრავლობაში იყენებს თქვენი ელემენტის 5-12% მაქსიმუმ.'),
                           SizedBox(height: 8),
                           Text('• აპი არ აგროვებს და არ ინახავს თქვენს პირად მონაცემებს.'),
                           SizedBox(height: 8),
@@ -349,16 +363,131 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
         ),
         body: Stack(
           children: [
-            Image.asset('assets/background_image.jpg', fit: BoxFit.cover, width: double.infinity, height: double.infinity),
-            const Center(
-              child: Text(
-                'ზონალური პარკირების\n'
-                'კონტროლის სისტემა\n\n\n\n'
-                'აპლიკაცია მუშაობს ფონურ რეჟიმში\n'
-                'შეგიძლიათ დახუროთ და ავტომატურად\n'
-                'ჩაირთვება ზონალურ პარკირაზე დადგომისას.',
-                style: TextStyle(color: Colors.white, fontSize: 18, height: 1.4),
-                textAlign: TextAlign.center,
+            // ფონი: დინამიური ან asset, ორივეს აქვს fallback და errorBuilder
+            FutureBuilder<String?>(
+              future: fetchBackgroundImageUrl(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final imageUrl = snapshot.data;
+                if (imageUrl != null && imageUrl.isNotEmpty) {
+                  return Image.network(
+                    imageUrl,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    height: double.infinity,
+                    errorBuilder: (context, error, stackTrace) {
+                      // თუ ვერ ჩაიტვირთა დინამიური სურათი, ვაჩვენოთ asset
+                      return Image.asset(
+                        'assets/background_image.jpg',
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                        errorBuilder: (context, error, stackTrace) {
+                          // თუ asset-იც ვერ ჩაიტვირთა, ვაჩვენოთ შავი ფონი
+                          return Container(color: Colors.black);
+                        },
+                      );
+                    },
+                  );
+                }
+                // fallback: ლოკალური asset თუ URL ცარიელია
+                return Image.asset(
+                  'assets/background_image.jpg',
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  errorBuilder: (context, error, stackTrace) {
+                    // თუ asset-იც ვერ ჩაიტვირთა, ვაჩვენოთ შავი ფონი
+                    return Container(color: Colors.black);
+                  },
+                );
+              },
+            ),
+            // გამჭვირვალე შავი ფენა ტექსტისთვის, რომ ყოველთვის გამოჩნდეს
+            Container(
+              color: Colors.black.withOpacity(0.3),
+              width: double.infinity,
+              height: double.infinity,
+            ),
+            // ტექსტი Column-ში, უფრო მაღლა და სტილიზებული ! სიმბოლოები
+            Positioned(
+              top: 80,
+              left: 0,
+              right: 0,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'ზონალური პარკირების',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      height: 1.2,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const Text(
+                    'კონტროლის სისტემა',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      height: 1.2,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 10),
+                  // ქვედა ტექსტი უფრო პატარა
+                  const Text(
+                    'აპლიკაცია შეგიძლიათ ჩაკეცოთ;\n ავტომატურად ჩაირთვება\n ზონალურ პარკირაზე.',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                      fontWeight: FontWeight.normal,
+                      height: 1.3,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  // ! სიმბოლოები სქელი და წითელი
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Text(
+                        '!',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          'ყოველთვის გადაამოწმეთ\nლოტის ნომერი',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        '!',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
             if (_isLoading)
@@ -380,5 +509,16 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
         ),
       ),
     );
+  }
+
+  // Remote Config-დან სურათის URL-ის წამოღების ფუნქცია
+  Future<String?> fetchBackgroundImageUrl() async {
+    final remoteConfig = FirebaseRemoteConfig.instance;
+    await remoteConfig.setConfigSettings(RemoteConfigSettings(
+      fetchTimeout: const Duration(seconds: 10),
+      minimumFetchInterval: const Duration(minutes: 5),
+    ));
+    await remoteConfig.fetchAndActivate();
+    return remoteConfig.getString('background_image_url');
   }
 }

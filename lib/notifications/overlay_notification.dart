@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 
 /// POPUP NOTIFICATION
 class OverlayNotification {
@@ -57,72 +58,98 @@ class OverlayNotification {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Container(
-                  width: 320,
-                  padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (icon != null) ...[
-                        icon!,
-                        const SizedBox(height: 12),
-                      ],
-                      Text(title,
-                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black)),
-                      const SizedBox(height: 10),
-                      Text(message,
-                          style: const TextStyle(fontSize: 16, color: Colors.black87), textAlign: TextAlign.center),
-                      const SizedBox(height: 18),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          if (onCancel != null)
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.grey[200],
-                                foregroundColor: Colors.black,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                              onPressed: () {
-                                dismiss();
-                                onCancel();
-                              },
-                              child: const Text('გაუქმება'),
+                child: FutureBuilder<String?>(
+                  future: fetchPopupBackgroundUrl(),
+                  builder: (context, snapshot) {
+                    final imageUrl = snapshot.data;
+                    return Stack(
+                      children: [
+                        if (imageUrl != null && imageUrl.isNotEmpty)
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Image.network(
+                              imageUrl,
+                              width: 320,
+                              height: null,
+                              fit: BoxFit.cover,
                             ),
-                          if (onConfirm != null)
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                              onPressed: () {
-                                dismiss();
-                                onConfirm();
-                              },
-                              child: const Text('პარკირება'),
-                            ),
-                        ],
-                      ),
-                      if (onExit != null)
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: IconButton(
-                            icon: const Icon(Icons.close, color: Colors.black38, size: 22),
-                            onPressed: () {
-                              dismiss();
-                              onExit();
-                            },
+                          ),
+                        // გამჭვირვალე შავი ფენა ტექსტისთვის
+                        Container(
+                          width: 320,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(16),
                           ),
                         ),
-                    ],
-                  ),
+                        // ტექსტი და ღილაკები
+                        Positioned.fill(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (icon != null) ...[
+                                  icon!,
+                                  const SizedBox(height: 12),
+                                ],
+                                Text(title,
+                                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                                const SizedBox(height: 10),
+                                Text(message,
+                                    style: const TextStyle(fontSize: 16, color: Colors.white), textAlign: TextAlign.center),
+                                const SizedBox(height: 18),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  children: [
+                                    if (onCancel != null)
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.grey[200],
+                                          foregroundColor: Colors.black,
+                                          elevation: 0,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        ),
+                                        onPressed: () {
+                                          dismiss();
+                                          onCancel();
+                                        },
+                                        child: const Text('გაუქმება'),
+                                      ),
+                                    if (onConfirm != null)
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.blue,
+                                          foregroundColor: Colors.white,
+                                          elevation: 0,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        ),
+                                        onPressed: () {
+                                          dismiss();
+                                          onConfirm();
+                                        },
+                                        child: const Text('პარკირება'),
+                                      ),
+                                  ],
+                                ),
+                                if (onExit != null)
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: IconButton(
+                                      icon: const Icon(Icons.close, color: Colors.white70, size: 22),
+                                      onPressed: () {
+                                        dismiss();
+                                        onExit();
+                                      },
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -144,5 +171,16 @@ class OverlayNotification {
     _overlayEntry?.remove();
     _overlayEntry = null;
     _isVisible = false;
+  }
+
+  // Remote Config-დან popup-ის ფონის URL-ის წამოღების ფუნქცია
+  static Future<String?> fetchPopupBackgroundUrl() async {
+    final remoteConfig = FirebaseRemoteConfig.instance;
+    await remoteConfig.setConfigSettings(RemoteConfigSettings(
+      fetchTimeout: const Duration(seconds: 10),
+      minimumFetchInterval: const Duration(minutes: 5),
+    ));
+    await remoteConfig.fetchAndActivate();
+    return remoteConfig.getString('popup_background_url');
   }
 }
