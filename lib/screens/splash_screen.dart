@@ -156,9 +156,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
       // foreground-ზე ამოყვანა და overlay პოპაპის გამოჩენა
       if (!mounted) return;
       if (payload != null && payload.isNotEmpty) {
-        _showParkingNotification(await LocationService.getCurrentPosition(filtered: true) ?? Position(
-          latitude: 0, longitude: 0, timestamp: DateTime.now(), accuracy: 0, altitude: 0, heading: 0, speed: 0, speedAccuracy: 0, altitudeAccuracy: 0, headingAccuracy: 0),
-          payload.split(' ან '));
+        await _startParking(payload);
       }
       return;
     }
