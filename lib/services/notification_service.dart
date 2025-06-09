@@ -65,36 +65,50 @@ class NotificationService {
   static Future<void> showParkingNotification({
     required Position position,
     required String lotNumber,
+    bool isLeavingZone = false,
   }) async {
-    final title = 'პარკირების ზონა №  $lotNumber';
-    const body = 'გსურთ პარკირების დაწყება?';
+    final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+        FlutterLocalNotificationsPlugin();
 
-    // Для Android — добавляем две action-кнопки
-    const androidDetails = AndroidNotificationDetails(
-      'parking_channel',
-      'Parking Notifications',
-      importance: Importance.max,
-      priority: Priority.high,
-      icon: '@mipmap/ic_custom',
-      sound: RawResourceAndroidNotificationSound('funny_minion'),
-      actions: <AndroidNotificationAction>[
-        AndroidNotificationAction('park', 'დადასტურება'),
-        AndroidNotificationAction('cancel', 'გაუქმება'),
-      ],
-    );
-    const iosDetails = DarwinNotificationDetails();
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
+    final title = isLeavingZone 
+        ? 'თქვენ დატოვეთ ზონალური პარკირების ადგილი'
+        : 'ზონალური პარკირების ზონა № $lotNumber';
+    final body = isLeavingZone
+        ? 'არ დაგავიწყდეთ პარკირების დასრულება!'
+        : 'გსურთ პარკირების დაწყება?';
 
-    // payload передает lotNumber, а действие — идентификатор кнопки
-    await _flnp.show(
+    await flutterLocalNotificationsPlugin.show(
       1,
       title,
       body,
-      details,
-      payload: lotNumber,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          'parking_channel',
+          'Parking Reminder',
+          channelDescription: 'Channel for parking notifications',
+          importance: Importance.max,
+          priority: Priority.high,
+          icon: '@mipmap/ic_custom',
+          actions: isLeavingZone ? [] : [
+            const AndroidNotificationAction(
+              'park',
+              'დაწყება',
+              showsUserInterface: true,
+            ),
+            const AndroidNotificationAction(
+              'cancel',
+              'გაუქმება',
+              cancelNotification: true,
+            ),
+          ],
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+      payload: isLeavingZone ? null : lotNumber,
     );
   }
 
@@ -103,6 +117,13 @@ class NotificationService {
     _onActionCallback(action, payload);
   }
 
+  /// კონკრეტული შეტყობინების გაუქმება
+  static Future<void> cancelNotification(int id) async {
+    await _flnp.cancel(id);
+  }
+
   /// ყველა შეტყობინების გაუქმება
-  static Future<void> cancelAll() => _flnp.cancelAll();
+  static Future<void> cancelAll() async {
+    await _flnp.cancelAll();
+  }
 }

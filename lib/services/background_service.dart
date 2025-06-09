@@ -42,20 +42,24 @@ class BackgroundService {
     await _service.configure(
       androidConfiguration: AndroidConfiguration(
         onStart: _onStart,
-        isForegroundMode: true,
         autoStart: true,
+        isForegroundMode: true,
         notificationChannelId: 'parking_channel',
-        foregroundServiceNotificationId: 888,
-        foregroundServiceTypes: [AndroidForegroundType.location],
         initialNotificationTitle: 'Parking Reminder',
-        initialNotificationContent: 'Initializing tracking...',
+        foregroundServiceNotificationId: 888,
       ),
       iosConfiguration: IosConfiguration(
         autoStart: true,
         onForeground: _onStart,
+        onBackground: _onIosBackground,
       ),
     );
     _isInitialized = true;
+  }
+
+  @pragma('vm:entry-point')
+  static Future<bool> _onIosBackground(ServiceInstance service) async {
+    return true;
   }
 
   @pragma('vm:entry-point')
@@ -200,7 +204,8 @@ class BackgroundService {
           print('BG_SERVICE: Distance from parked location: $dist');
           final prefs = await SharedPreferences.getInstance();
           bool leftZoneNotified = prefs.getBool('leftZoneNotified') ?? false;
-          if (dist > 100 && !leftZoneNotified) {
+          
+          if (dist > 200 && !leftZoneNotified) {
             print('BG_SERVICE: Sending left zone notification');
             // სისტემური შეტყობინება პარკინგის დატოვების შესახებ
             await FlutterLocalNotificationsPlugin().show(
@@ -223,29 +228,29 @@ class BackgroundService {
         }
       }
     } catch (e) {
-      // შეცდომის დამუშავება: ლოკაციის ან სხვა პრობლემის შემთხვევაში
-      print('BG_SERVICE: ERROR: $e');
-      service.invoke('error', {'message': 'Ошибка локации: $e'});
+      print('BG_SERVICE: Error checking location: $e');
     }
   }
 
   static Future<void> start() async {
-    if (_isRunning) return;
-    await _service.startService();
-    _isRunning = true;
+    if (!_isInitialized) await initialize();
+    if (!_isRunning) {
+      await _service.startService();
+      _isRunning = true;
+    }
   }
 
   static Future<void> stop() async {
-    if (!_isRunning) return;
-    _service.invoke('stop');
-    _isRunning = false;
+    if (_isRunning) {
+      _service.invoke('stop');
+      _isRunning = false;
+    }
   }
 
   static Future<void> forceStop() async {
-    await stop();
-    _isRunning = false;
+    if (_isRunning) {
+      _service.invoke('stop');
+      _isRunning = false;
+    }
   }
-
-  static bool get isRunning => _isRunning;
-  static FlutterBackgroundService get service => _service;
 }
