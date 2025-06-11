@@ -39,6 +39,10 @@ class LocationService {
   }
 
   // Получение текущей позиции
+  static Future<Position?> getPosition() async {
+    return getCurrentPosition();
+  }
+
   static Future<Position?> getCurrentPosition({bool filtered = true}) async {
     if (!await checkAndRequestPermission()) {
       return null;
