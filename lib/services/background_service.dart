@@ -128,9 +128,49 @@ class BackgroundService {
         return;
       }
 
+      final prefs = await SharedPreferences.getInstance();
+      final isForeground = prefs.getBool('isForeground') ?? false;
+
+      // თუ ფორეგრაუნდშია, გავაუქმოთ ყველა შეტყობინება და გავაგრძელოთ
+      if (isForeground) {
+        print('BG_SERVICE: App is in foreground, canceling notifications');
+        await NotificationService.cancelAll();
+        return;
+      }
+
+      // შევამოწმოთ პოპაპის ისტორია
+      final lastPopupLots = prefs.getString('lastPopupLots');
+      final lastPopupTimestamp = prefs.getInt('lastPopupTimestamp') ?? 0;
+      final now = DateTime.now().millisecondsSinceEpoch;
+
+      if (lastPopupLots != null) {
+        final timeSinceLastPopup = now - lastPopupTimestamp;
+        if (timeSinceLastPopup < 60000) { // 1 წუთის განმავლობაში
+          print('BG_SERVICE: Skipping notification - popup was shown recently (${timeSinceLastPopup ~/ 1000} seconds ago)');
+          return;
+        }
+      }
+
+      // შევამოწმოთ საცობის სტატუსი
+      final blockedUntil = prefs.getInt('notifications_blocked_until') ?? 0;
+      if (now < blockedUntil) {
+        final blockedUntilTime = DateTime.fromMillisecondsSinceEpoch(blockedUntil);
+        final remainingMinutes = ((blockedUntil - now) / (60 * 1000)).round();
+        print('BG_SERVICE: Notifications are blocked until $blockedUntilTime (remaining: $remainingMinutes minutes)');
+        return;
+      }
+
       final lotNumbers = await parkingService.checkProximity(position);
       print('BG_SERVICE: Found lots: $lotNumbers');
       if (lotNumbers.isNotEmpty) {
+        final lotsText = lotNumbers.join(' ან ');
+        
+        // შევამოწმოთ, არის თუ არა ეს ლოტები უკვე გამოჩენილი პოპაპში
+        if (lastPopupLots == lotsText && now - lastPopupTimestamp < 60000) {
+          print('BG_SERVICE: Skipping notification - same lots were shown in popup recently');
+          return;
+        }
+        
         if (_lastNotificationPosition != null) {
           final dist = Geolocator.distanceBetween(
             position.latitude, position.longitude,
@@ -138,11 +178,21 @@ class BackgroundService {
           );
           if (dist < 50) return;
         }
+
         _pendingLots.addAll(lotNumbers);
         _pendingLots = _pendingLots.toSet().toList();
         _debounceTimer?.cancel();
         _debounceTimer = Timer(const Duration(seconds: 2), () async {
           if (_pendingLots.isNotEmpty) {
+            // შევამოწმოთ კვლავ ფორეგრაუნდის სტატუსი
+            final isStillForeground = prefs.getBool('isForeground') ?? false;
+            if (isStillForeground) {
+              print('BG_SERVICE: App is still in foreground, canceling notification');
+              await NotificationService.cancelAll();
+              _pendingLots.clear();
+              return;
+            }
+
             final lotsText = _pendingLots.join(' ან ');
             _lastNotificationPosition = Position(
               latitude: position.latitude,
@@ -156,14 +206,13 @@ class BackgroundService {
               altitudeAccuracy: position.altitudeAccuracy,
               headingAccuracy: position.headingAccuracy,
             );
-            final prefs = await SharedPreferences.getInstance();
+
             final lastLot = prefs.getString('lastNotifiedLot');
             final lastTime = prefs.getInt('lastNotifiedTime') ?? 0;
             final now = DateTime.now().millisecondsSinceEpoch;
             final blockedLots = prefs.getStringList('blockedLots') ?? [];
             final blockedTimes = prefs.getStringList('blockedTimes') ?? [];
-            List<String> stillBlocked = [];
-            List<String> stillBlockedTimes = [];
+            
             bool isBlocked = false;
             for (int i = 0; i < blockedLots.length; i++) {
               final lot = blockedLots[i];
@@ -173,7 +222,13 @@ class BackgroundService {
                 break;
               }
             }
-            if (isBlocked) return;
+            
+            if (isBlocked) {
+              print('BG_SERVICE: Lots are blocked');
+              _pendingLots.clear();
+              return;
+            }
+
             if (lastLot != lotsText || now - lastTime > 3600000) {
               print('BG_SERVICE: Sending notification for lots: $lotsText');
               await NotificationService.showParkingNotification(

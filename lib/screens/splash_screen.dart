@@ -52,15 +52,18 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
   Position? _lastNotificationPosition;
   bool _showButtons = false;
   bool _showSOSButtons = false;
+  bool _isInZone = true;
+  String _currentParkingLots = '';
+  DateTime? _startTime;
 
   final List<Map<String, dynamic>> _serviceButtons = [
-    {'icon': 'security-agent.png', 'title': 'უსაფრთხოება'},
+    {'icon': 'security-agent.png', 'title': 'პოლიცია'},
     {'icon': 'food.png', 'title': 'კვება'},
     {'icon': 'cart.png', 'title': 'მაღაზია'},
     {'icon': 'garage.png', 'title': 'ავტოსერვისი'},
-    {'icon': 'tires.png', 'title': 'საბურავები'},
+    {'icon': 'tires.png', 'title': 'ვულკანიზაცია'},
     {'icon': 'pharmacy.png', 'title': 'აფთიაქი'},
-    {'icon': 'gasstation.png', 'title': 'ბენზინგასამართი'},
+    {'icon': 'gasstation.png', 'title': 'საწვავი'},
   ];
 
   final List<Map<String, dynamic>> _sosButtons = [
@@ -101,7 +104,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
       double proximityRadius = 20;
       final lots = await _parkingService.checkProximity(pos, proximityRadius: proximityRadius);
       if (lots.isNotEmpty && mounted) {
-        _showParkingNotification(pos, lots);
+        _showParkingNotification(lots.join(' ან '));
       }
 
 
@@ -155,39 +158,32 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
     return (sdk ?? 0) >= 31;
   }
 
-  void _showParkingNotification(Position pos, List<String> lots) async {
+  void _showParkingNotification(String lotsText) async {
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now().millisecondsSinceEpoch;
-    final lastTime = prefs.getInt('lastPopupTime') ?? 0;
-    if (now - lastTime < 60000) return; // თუ popup უკვე იყო ბოლო 1 წუთში, აღარ ვაჩვენებთ
-    await prefs.setInt('lastPopupTime', now);
-    final lotsText = lots.join(' ან ');
-
-    // ვაჩვენებთ პოპაპს მხოლოდ თუ აპლიკაცია ფორეგრაუნდშია
-    if (ModalRoute.of(context)?.isCurrent == true) {
+    
+    // შევინახოთ პოპაპის ინფორმაცია
+    await prefs.setString('lastPopupLots', lotsText);
+    await prefs.setInt('lastPopupTimestamp', now);
+    
+    if (mounted) {
       OverlayNotification.show(
         context: context,
         title: 'ზონალური პარკირების ზონა № $lotsText',
         message: 'გსურთ პარკირების დაწყება?',
         duration: const Duration(seconds: 10),
         icon: const Icon(Icons.directions_car, color: Colors.white, size: 28),
-        onConfirm: () => _onNotificationAction('park', lotsText),
-        onCancel: () => _onNotificationAction('cancel', null),
-        onExit: () => _onNotificationAction('exit', null),
+        onConfirm: () => _startParking(lotsText),
+        onCancel: () => _cancelParking(),
+        onExit: () => _cancelParking(),
         persistent: true,
-      );
-    } else {
-      // თუ აპლიკაცია ბექგრაუნდშია, ვაჩვენებთ სისტემურ შეტყობინებას
-      await NotificationService.showParkingNotification(
-        position: pos,
-        lotNumber: lotsText,
       );
     }
   }
 
   void _onNotificationAction(String action, String? payload) async {
-    if (action == 'park') {
-      // თუ აპლიკაცია ბექგრაუნდში იყო, ვახსნით მას
+    if (action == 'open_app') {
+      // თუ აპლიკაცია ბექგრაუნდში იყო, ვხსნით მას
       if (ModalRoute.of(context)?.isCurrent != true) {
         final intent = AndroidIntent(
           action: 'android.intent.action.MAIN',
@@ -220,7 +216,14 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) BackgroundService.start();
+    SharedPreferences.getInstance().then((prefs) {
+      if (state == AppLifecycleState.resumed) {
+        prefs.setBool('isForeground', true);
+        BackgroundService.start();
+      } else if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive || state == AppLifecycleState.detached) {
+        prefs.setBool('isForeground', false);
+      }
+    });
   }
 
   void _startForegroundLocationCheck() {
@@ -276,7 +279,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
             final lotsText = _pendingLots.join(' ან ');
             _lastOverlayLots = lotsText;
             _lastNotificationPosition = pos;
-            _showParkingNotification(pos, _pendingLots);
+            _showParkingNotification(lotsText);
             _pendingLots.clear();
           }
         });
@@ -814,6 +817,9 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
       await BackgroundService.forceStop();
       await NotificationService.cancelAll();
       
+      // წავშალოთ პარკირების მონაცემები
+      await _parkingService.endParking();
+      
       // დავრწმუნდეთ რომ ყველა სერვისი გაჩერებულია
       await Future.delayed(const Duration(milliseconds: 500));
       
@@ -840,12 +846,6 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
         
         // დავრწმუნდეთ რომ ფონური სერვისი მუშაობს
         await BackgroundService.start();
-        
-        // გავუშვათ შეტყობინება რომ აპლიკაცია მუშაობს ფონურ რეჟიმში
-        NotificationService.showSimpleNotification(
-          title: 'პარკირების კონტროლი',
-          message: 'აპლიკაცია მუშაობს ფონურ რეჟიმში',
-        );
       }
     } catch (e) {
       print('Error minimizing app: $e');

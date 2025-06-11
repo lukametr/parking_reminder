@@ -18,7 +18,7 @@ android {
     defaultConfig {
         applicationId = "com.findall.ParkingReminder"
         minSdk = 23
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
         multiDexEnabled = true
@@ -32,6 +32,12 @@ android {
 
     kotlinOptions {
         jvmTarget = "11"
+    }
+
+    sourceSets {
+        getByName("main") {
+            java.srcDirs("src/main/kotlin")
+        }
     }
 
     // Загрузка ключей подписи из key.properties
