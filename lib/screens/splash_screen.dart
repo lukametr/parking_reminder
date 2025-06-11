@@ -20,6 +20,7 @@ import 'package:android_intent_plus/flag.dart';
 import 'package:external_app_launcher/external_app_launcher.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:developer' as developer;
+import 'package:parking_reminder/screens/pharmacy_map_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -705,7 +706,14 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
                               color: Colors.transparent,
                               child: InkWell(
                                 onTap: () {
-                                  // აქ დავამატებთ ლოგიკას შემდეგში
+                                  if (service['title'] == 'აფთიაქი') {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const PharmacyMapScreen(),
+                                      ),
+                                    );
+                                  }
                                 },
                                 borderRadius: BorderRadius.circular(15),
                                 child: Column(

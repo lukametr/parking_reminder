@@ -20,9 +20,13 @@ dependencies:
   url_launcher: ^6.2.5
   android_intent_plus: ^4.0.3
   flutter_background_service: ^5.1.0
-  rxdart: ^0.28.0
+  rxdart: ^0.27.7
   flutter_background_service_android: ^6.3.0
   external_app_launcher: ^4.0.3
+  google_maps_flutter: ^2.5.3
+  google_maps_flutter_web: ^0.5.4+4
+  google_places_flutter: ^2.0.8
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:
