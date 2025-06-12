@@ -21,6 +21,12 @@ import 'package:external_app_launcher/external_app_launcher.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:developer' as developer;
 import 'package:parking_reminder/screens/pharmacy_map_screen.dart';
+import 'package:parking_reminder/screens/police_map_screen.dart';
+import 'package:parking_reminder/screens/food_map_screen.dart';
+import 'package:parking_reminder/screens/shop_map_screen.dart';
+import 'package:parking_reminder/screens/auto_service_map_screen.dart';
+import 'package:parking_reminder/screens/vulcanization_map_screen.dart';
+import 'package:parking_reminder/screens/gas_station_map_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -711,6 +717,48 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
                                       context,
                                       MaterialPageRoute(
                                         builder: (context) => const PharmacyMapScreen(),
+                                      ),
+                                    );
+                                  } else if (service['title'] == 'პოლიცია') {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const PoliceMapScreen(),
+                                      ),
+                                    );
+                                  } else if (service['title'] == 'კვება') {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const FoodMapScreen(),
+                                      ),
+                                    );
+                                  } else if (service['title'] == 'მაღაზია') {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const ShopMapScreen(),
+                                      ),
+                                    );
+                                  } else if (service['title'] == 'ავტოსერვისი') {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const AutoServiceMapScreen(),
+                                      ),
+                                    );
+                                  } else if (service['title'] == 'ვულკანიზაცია') {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const VulcanizationMapScreen(),
+                                      ),
+                                    );
+                                  } else if (service['title'] == 'საწვავი') {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => const GasStationMapScreen(),
                                       ),
                                     );
                                   }
