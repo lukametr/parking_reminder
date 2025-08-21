@@ -1,0 +1,17 @@
+name: pr_app
+description: Minimal PR app shell
+
+environment:
+  sdk: '^3.8.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  url_launcher: ^6.2.5
+  firebase_core: ^4.0.0
+  firebase_remote_config: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - parking_reminder/assets/background_image.jpg
