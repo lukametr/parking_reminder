@@ -1,4 +1,4 @@
-package com.example.pr_app
+package com.parkingreminder.app
 
 import io.flutter.embedding.android.FlutterActivity
 

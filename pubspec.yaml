@@ -1,5 +1,6 @@
 name: pr_app
-description: Minimal PR app shell
+description: ზონალური პარკინგის შეხსენება — Android აპლიკაცია.
+version: 1.0.1+2
 
 environment:
   sdk: '^3.8.0'
@@ -10,8 +11,18 @@ dependencies:
   url_launcher: ^6.2.5
   firebase_core: ^4.0.0
   firebase_remote_config: ^6.0.0
+  firebase_crashlytics: ^5.0.0
+
+  geolocator: ^10.1.0
+  permission_handler: ^11.0.1
+
+  sqflite: ^2.3.0
+  path_provider: ^2.1.1
+  path: ^1.9.0
+
+  flutter_local_notifications: ^19.0.0
+
+  google_mobile_ads: ^4.0.0
 
 flutter:
   uses-material-design: true
-  assets:
-    - parking_reminder/assets/background_image.jpg

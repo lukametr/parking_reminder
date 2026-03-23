@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+
+import '../utils/phone_launcher.dart';
 
 class ServiceButtons extends StatelessWidget {
   final bool showButtons;
@@ -8,18 +9,17 @@ class ServiceButtons extends StatelessWidget {
   final Function(bool) onShowSOSButtonsChanged;
 
   const ServiceButtons({
-    Key? key,
+    super.key,
     required this.showButtons,
     required this.showSOSButtons,
     required this.onShowButtonsChanged,
     required this.onShowSOSButtonsChanged,
-  }) : super(key: key);
+  });
 
-  // Brand colors for non-SOS actions
-  static const Color _green = Color(0xFF2E7D32); // Green 800
-  static const Color _greenDark = Color(0xFF1B5E20); // Green 900
+  static const Color _green = Color(0xFF2E7D32);
+  static const Color _greenDark = Color(0xFF1B5E20);
 
-  final List<Map<String, dynamic>> _serviceButtons = const [
+  static const List<Map<String, dynamic>> _serviceButtons = [
     {'icon': Icons.restaurant, 'title': 'კვება'},
     {'icon': Icons.shopping_cart, 'title': 'მაღაზია'},
     {'icon': Icons.local_shipping, 'title': 'ევაკუატორი'},
@@ -28,7 +28,7 @@ class ServiceButtons extends StatelessWidget {
     {'icon': Icons.local_gas_station, 'title': 'ბენზინგასამართი'},
   ];
 
-  final List<Map<String, dynamic>> _sosButtons = const [
+  static const List<Map<String, dynamic>> _sosButtons = [
     {'title': '112', 'icon': Icons.local_police, 'phone': '112'},
     {
       'title': 'დაზღვევა',
@@ -40,39 +40,52 @@ class ServiceButtons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Stack(
+      fit: StackFit.expand,
       children: [
         if (!showButtons && !showSOSButtons)
-          Positioned(bottom: 20, left: 20, child: _sosFab(context)),
-        if (!showButtons && !showSOSButtons)
-          Positioned(bottom: 20, right: 20, child: _servicesButton(context)),
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 8,
+            child: SafeArea(
+              top: false,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _sosFab(context),
+                  _servicesButton(context),
+                ],
+              ),
+            ),
+          ),
         if (showSOSButtons) _sosOverlay(context),
         if (showButtons) _servicesOverlay(context),
       ],
     );
   }
 
-  // Only this button remains red
   Widget _sosFab(BuildContext context) {
-    return Container(
-      width: 60,
-      height: 60,
-      decoration: BoxDecoration(
-        color: Colors.red,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            spreadRadius: 2,
-            blurRadius: 5,
-            offset: const Offset(0, 2),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => onShowSOSButtonsChanged(true),
+        borderRadius: BorderRadius.circular(30),
+        child: Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            color: Colors.red,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.35),
+                spreadRadius: 1,
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => onShowSOSButtonsChanged(true),
-          borderRadius: BorderRadius.circular(30),
           child: const Center(
             child: Text(
               'SOS',
@@ -89,57 +102,55 @@ class ServiceButtons extends StatelessWidget {
   }
 
   Widget _servicesButton(BuildContext context) {
-    return Container(
-      height: 50,
-      constraints: const BoxConstraints(minWidth: 150, maxWidth: 240),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_green, _greenDark],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => onShowButtonsChanged(true),
         borderRadius: BorderRadius.circular(25),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.12),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.45),
-            spreadRadius: 1,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => onShowButtonsChanged(true),
-          borderRadius: BorderRadius.circular(25),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              mainAxisSize: MainAxisSize.max,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.apps, color: Colors.white),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'სერვისები',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ],
+        child: Container(
+          height: 50,
+          constraints: const BoxConstraints(minWidth: 140, maxWidth: 220),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [_green, _greenDark],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.12),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.45),
+                spreadRadius: 1,
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.apps, color: Colors.white, size: 22),
+              SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  'სერვისები',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -148,8 +159,8 @@ class ServiceButtons extends StatelessWidget {
 
   Widget _sosOverlay(BuildContext context) {
     return Positioned.fill(
-      child: Container(
-        color: Colors.black.withValues(alpha: 0.7),
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.72),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -157,26 +168,26 @@ class ServiceButtons extends StatelessWidget {
               'სასწრაფოდ დაკავშირება',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 24,
+                fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 32),
             Wrap(
               alignment: WrapAlignment.center,
-              spacing: 20,
-              runSpacing: 20,
-              children: _sosButtons.map((button) {
+              spacing: 24,
+              runSpacing: 24,
+              children: _sosButtons.map((Map<String, dynamic> button) {
                 return Container(
-                  width: 120,
-                  height: 120,
+                  width: 128,
+                  height: 128,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: [_green, _greenDark],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: BorderRadius.circular(15),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: Colors.white.withValues(alpha: 0.12),
                       width: 1,
@@ -194,15 +205,9 @@ class ServiceButtons extends StatelessWidget {
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: () async {
-                        final Uri url = Uri(
-                          scheme: 'tel',
-                          path: button['phone'],
-                        );
-                        if (await canLaunchUrl(url)) {
-                          await launchUrl(url);
-                        }
+                        await dialNumber(button['phone'] as String);
                       },
-                      borderRadius: BorderRadius.circular(15),
+                      borderRadius: BorderRadius.circular(16),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -228,7 +233,7 @@ class ServiceButtons extends StatelessWidget {
                 );
               }).toList(),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 32),
             TextButton(
               onPressed: () => onShowSOSButtonsChanged(false),
               child: const Text(
@@ -244,32 +249,32 @@ class ServiceButtons extends StatelessWidget {
 
   Widget _servicesOverlay(BuildContext context) {
     return Positioned.fill(
-      child: Container(
-        color: Colors.black.withValues(alpha: 0.7),
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.72),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            const SizedBox(height: 12),
             const Text(
               'აირჩიეთ სერვისი',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 24,
+                fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 24),
             Expanded(
               child: GridView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 3,
                   childAspectRatio: 1,
-                  crossAxisSpacing: 20,
-                  mainAxisSpacing: 20,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
                 ),
                 itemCount: _serviceButtons.length,
-                itemBuilder: (context, index) {
-                  final service = _serviceButtons[index];
+                itemBuilder: (BuildContext context, int index) {
+                  final Map<String, dynamic> service = _serviceButtons[index];
                   return Container(
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
@@ -309,18 +314,20 @@ class ServiceButtons extends StatelessWidget {
                           children: [
                             Icon(
                               service['icon'] as IconData,
-                              size: 40,
+                              size: 36,
                               color: Colors.white,
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             Text(
                               service['title'] as String,
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 12,
+                                fontSize: 11,
                                 fontWeight: FontWeight.bold,
                               ),
                               textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
@@ -330,7 +337,6 @@ class ServiceButtons extends StatelessWidget {
                 },
               ),
             ),
-            const SizedBox(height: 20),
             TextButton(
               onPressed: () => onShowButtonsChanged(false),
               child: const Text(
@@ -338,7 +344,7 @@ class ServiceButtons extends StatelessWidget {
                 style: TextStyle(color: Colors.white, fontSize: 16),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 8),
           ],
         ),
       ),

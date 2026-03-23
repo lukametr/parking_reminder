@@ -27,6 +27,11 @@ functions/.firebase/
 **/*.jks
 **/*.keystore
 
+# Local APK analysis folders
+apk_extracted/
+apk_extracted_final/
+apk_extracted_new/
+
 # Artifacts
 *.apk
 *.aab
