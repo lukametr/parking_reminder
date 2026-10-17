@@ -34,9 +34,7 @@ class NotificationService {
         // actionId: 'park', 'cancel', 'tap' (ღილაკის ან notification-ის დაჭერა)
         final action = response.actionId?.isNotEmpty == true ? response.actionId : 'tap';
         final payload = response.payload;
-        if (_onActionCallback != null) {
-          _onActionCallback(action!, payload);
-        }
+        _onActionCallback(action ?? 'tap', payload);
       },
     );
   }
