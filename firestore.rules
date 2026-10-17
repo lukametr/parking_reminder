@@ -1,0 +1,23 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Public lot map used by the app. Writes only via Admin/Console.
+    match /parkings/{lotId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Must not be world-readable. Enable Auth before opening these.
+    match /user_parkings/{docId} {
+      allow read, write: if false;
+    }
+
+    match /users/{userId} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

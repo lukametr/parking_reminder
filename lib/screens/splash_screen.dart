@@ -1,32 +1,34 @@
 // lib/screens/splash_screen.dart
 
-import 'dart:io';
 import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:parking_reminder/firebase_options.dart';
-import 'package:parking_reminder/services/background_service.dart';
-import 'package:parking_reminder/services/location_service.dart';
-import 'package:parking_reminder/services/notification_service.dart';
-import 'package:parking_reminder/services/parking_service.dart';
-import 'package:parking_reminder/notifications/overlay_notification.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_remote_config/firebase_remote_config.dart';
+import 'dart:io';
+
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:android_intent_plus/flag.dart';
 import 'package:external_app_launcher/external_app_launcher.dart';
+import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/foundation.dart';
-import 'dart:developer' as developer;
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:parking_reminder/config/ad_config.dart';
+import 'package:parking_reminder/notifications/overlay_notification.dart';
+import 'package:parking_reminder/screens/auto_service_map_screen.dart';
+import 'package:parking_reminder/screens/food_map_screen.dart';
+import 'package:parking_reminder/screens/gas_station_map_screen.dart';
 import 'package:parking_reminder/screens/pharmacy_map_screen.dart';
 import 'package:parking_reminder/screens/police_map_screen.dart';
-import 'package:parking_reminder/screens/food_map_screen.dart';
 import 'package:parking_reminder/screens/shop_map_screen.dart';
-import 'package:parking_reminder/screens/auto_service_map_screen.dart';
 import 'package:parking_reminder/screens/vulcanization_map_screen.dart';
-import 'package:parking_reminder/screens/gas_station_map_screen.dart';
+import 'package:parking_reminder/services/notification_service.dart';
+import 'package:parking_reminder/services/parking_monitor.dart';
+import 'package:parking_reminder/services/parking_service.dart';
+import 'package:parking_reminder/services/parking_session_tracker.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:developer' as developer;
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -51,17 +53,13 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver {
   static const _minimizeChannel = MethodChannel('com.findall.ParkingReminder/minimize');
   final ParkingService _parkingService = ParkingService();
+  final ParkingSessionTracker _session = ParkingSessionTracker();
   bool _isLoading = true;
-  Timer? _locationCheckTimer;
-  String? _lastOverlayLots;
-  Timer? _debounceTimer;
-  List<String> _pendingLots = [];
-  Position? _lastNotificationPosition;
+  StreamSubscription<MonitorEvent>? _monitorSub;
+  BannerAd? _banner;
+  bool _bannerReady = false;
   bool _showButtons = false;
   bool _showSOSButtons = false;
-  bool _isInZone = true;
-  String _currentParkingLots = '';
-  DateTime? _startTime;
 
   final List<Map<String, dynamic>> _serviceButtons = [
     {'icon': 'security-agent.png', 'title': 'პოლიცია'},
@@ -83,89 +81,117 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initializeApp();
-    _startForegroundLocationCheck();
   }
 
   Future<void> _initializeApp() async {
     setState(() => _isLoading = true);
-
     try {
-      // 1. Firebase
-      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
-      // 2. NOTIFICATIONS
       await NotificationService.initialize(onActionCallback: _onNotificationAction);
-
-      // 3. BACKGROUND SERVICE
-      await BackgroundService.initialize();
-      await BackgroundService.start();
-
-      // 4. REQUEST PERMISSIONS
+      _loadBanner();
       if (!await _ensureLocationPermission()) return;
-
-      // 5. CURRENT POSITION (with Kalman filtering)
-      final pos = await LocationService.getCurrentPosition(filtered: true);
-      if (pos == null) return;
-
-      // 6. Check proximity through ParkingService (3–5 m)
-      double proximityRadius = 20;
-      final lots = await _parkingService.checkProximity(pos, proximityRadius: proximityRadius);
-      if (lots.isNotEmpty && mounted) {
-        _showParkingNotification(lots.join(' ან '));
-      }
-
-
+      await _parkingService.getAllParkings();
+      await ParkingMonitor.instance.start();
+      _monitorSub ??= ParkingMonitor.instance.events.listen(_onMonitorEvent);
     } catch (e) {
       debugPrint('ERROR INITIALIZATION: $e');
-      await _terminateApp();
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  void _loadBanner() {
+    _banner = BannerAd(
+      size: AdSize.banner,
+      adUnitId: AdConfig.bannerId,
+      listener: BannerAdListener(
+        onAdLoaded: (Ad ad) {
+          if (mounted) setState(() => _bannerReady = true);
+        },
+        onAdFailedToLoad: (Ad ad, LoadAdError error) => ad.dispose(),
+      ),
+      request: const AdRequest(),
+    )..load();
+  }
+
+  void _onMonitorEvent(MonitorEvent event) {
+    unawaited(_session.processFix(
+      latitude: event.latitude,
+      longitude: event.longitude,
+      accuracyMeters: event.accuracy,
+      speedMps: event.speed,
+      nearbyLotNumbers: event.lots,
+    ));
+    if (event.type == 'lots' && event.lots.isNotEmpty && mounted) {
+      _showParkingNotification(event.lots.join(' ან '));
+    }
+  }
+
   Future<bool> _ensureLocationPermission() async {
-    var perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
-      perm = await Geolocator.requestPermission();
-    }
-    if (Platform.isAndroid && await _isAndroid12Plus()) {
-      if (perm == LocationPermission.whileInUse) {
-        perm = await Geolocator.requestPermission();
-      }
-    }
-    if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
-      await showDialog(
-        // ignore: use_build_context_synchronously
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => AlertDialog(
-          title: const Text('LOCATION REQUIRED'),
-          content: const Text('Without access to location, the application will not work.'),
-          actions: [
-            TextButton(onPressed: () => SystemNavigator.pop(), child: const Text('დახურვა')),
-          ],
-        ),
-      );
+    final LocationPermission existing = await Geolocator.checkPermission();
+    if (existing == LocationPermission.deniedForever) {
+      await _showAlwaysLocationDialog(deniedForever: true);
       return false;
     }
+    if (existing == LocationPermission.denied) {
+      final LocationPermission asked = await Geolocator.requestPermission();
+      if (asked == LocationPermission.denied ||
+          asked == LocationPermission.deniedForever) {
+        await _showAlwaysLocationDialog(deniedForever: true);
+        return false;
+      }
+    }
     if (Platform.isAndroid) {
-      var enabled = await Geolocator.isLocationServiceEnabled();
-      if (!enabled) {
+      if (!await Geolocator.isLocationServiceEnabled()) {
         await Geolocator.openLocationSettings();
-        enabled = await Geolocator.isLocationServiceEnabled();
-        if (!enabled) return false;
+      }
+      await Permission.notification.request();
+      await Permission.activityRecognition.request();
+      final bool always = await ParkingMonitor.instance.hasAlwaysLocation();
+      if (!always) {
+        final bool proceed = await _showAlwaysLocationDialog();
+        if (proceed) {
+          await Permission.locationAlways.request();
+        }
       }
     }
     return true;
   }
 
-  Future<bool> _isAndroid12Plus() async {
-    if (!Platform.isAndroid) return false;
-    final sdk = await _minimizeChannel.invokeMethod<int>('getSDKVersion');
-    return (sdk ?? 0) >= 31;
+  Future<bool> _showAlwaysLocationDialog({bool deniedForever = false}) async {
+    if (!mounted) return false;
+    final bool? ok = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text('ყოველთვის ნებართვა'),
+        content: Text(
+          deniedForever
+              ? 'ფონური შეხსენება საჭიროებს ლოკაციას „ყოველთვის“. გახსენით პარამეტრები და ჩართეთ.'
+              : 'აპი ამოწმებს, ხართ თუ არა თბილისის ფასიან ლოტთან, როცა ჩაკეცილია. ამისთვის აირჩიეთ „ყოველთვის დაშვება“ (Allow all the time). მხოლოდ „აპის გამოყენებისას“ ფონური მონიტორინგი გაჩერდება.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('ახლა არა'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('პარამეტრები'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      if (deniedForever) {
+        await ParkingMonitor.instance.openLocationSettings();
+      }
+      return true;
+    }
+    return false;
   }
 
   void _showParkingNotification(String lotsText) async {
+    if (OverlayNotification.isVisible) return;
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now().millisecondsSinceEpoch;
     
@@ -223,85 +249,16 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    SharedPreferences.getInstance().then((prefs) {
-      if (state == AppLifecycleState.resumed) {
-        prefs.setBool('isForeground', true);
-        BackgroundService.start();
-      } else if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive || state == AppLifecycleState.detached) {
-        prefs.setBool('isForeground', false);
-      }
-    });
-  }
-
-  void _startForegroundLocationCheck() {
-    _locationCheckTimer?.cancel();
-    _locationCheckTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
-      if (!mounted) return;
-      if (ModalRoute.of(context)?.isCurrent != true) return;
-      if (OverlayNotification.isVisible) return;
-      
-      final pos = await LocationService.getCurrentPosition(filtered: true);
-      if (pos == null) return;
-      
-      // შევამოწმოთ მიმდინარე პარკირება
-      final currentParking = await _parkingService.getCurrentParking();
-      if (currentParking != null) {
-        final parkLat = currentParking['latitude'] as double?;
-        final parkLng = currentParking['longitude'] as double?;
-        if (parkLat != null && parkLng != null) {
-          final dist = Geolocator.distanceBetween(
-            pos.latitude, pos.longitude,
-            parkLat, parkLng,
-          );
-          final prefs = await SharedPreferences.getInstance();
-          bool leftZoneNotified = prefs.getBool('leftZoneNotified') ?? false;
-          
-          if (dist > 200 && !leftZoneNotified) {
-            await NotificationService.showParkingNotification(
-              position: pos,
-              lotNumber: currentParking['lotNumber'],
-              isLeavingZone: true,
-            );
-            await prefs.setBool('leftZoneNotified', true);
-          }
-        }
-      }
-      
-      // შევამოწმოთ ახალი პარკირების ზონები
-      double proximityRadius = 20;
-      final lots = await _parkingService.checkProximity(pos, proximityRadius: proximityRadius);
-      if (lots.isNotEmpty) {
-        if (_lastNotificationPosition != null) {
-          final dist = Geolocator.distanceBetween(
-            pos.latitude, pos.longitude,
-            _lastNotificationPosition!.latitude, _lastNotificationPosition!.longitude,
-          );
-          if (dist < 200) return;
-        }
-        _pendingLots.addAll(lots);
-        _pendingLots = _pendingLots.toSet().toList();
-        _debounceTimer?.cancel();
-        _debounceTimer = Timer(const Duration(seconds: 2), () {
-          if (_pendingLots.isNotEmpty) {
-            final lotsText = _pendingLots.join(' ან ');
-            _lastOverlayLots = lotsText;
-            _lastNotificationPosition = pos;
-            _showParkingNotification(lotsText);
-            _pendingLots.clear();
-          }
-        });
-      } else {
-        _lastOverlayLots = null;
-        _pendingLots.clear();
-      }
-    });
+    if (state == AppLifecycleState.resumed) {
+      unawaited(ParkingMonitor.instance.start());
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _locationCheckTimer?.cancel();
-    _debounceTimer?.cancel();
+    unawaited(_monitorSub?.cancel());
+    _banner?.dispose();
     super.dispose();
   }
 
@@ -525,6 +482,16 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
               ],
             ),
           ),
+          if (_bannerReady && _banner != null)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 78,
+              child: SizedBox(
+                height: 50,
+                child: AdWidget(ad: _banner!),
+              ),
+            ),
           // სერვისების ღილაკი
           Positioned(
             left: 20,
@@ -852,6 +819,13 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
         longitude: position.longitude,
         startTime: DateTime.now(),
       );
+      await _session.beginSession(
+        lotNumber: mainLot,
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+      await const MethodChannel('com.findall.ParkingReminder/monitor')
+          .invokeMethod<void>('scheduleReminder', 55 * 60 * 1000);
       
       // Show notification
       await NotificationService.showParkingNotification(
@@ -870,7 +844,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
   Future<void> _terminateApp() async {
     try {
       // გავაჩეროთ ყველა სერვისი და შეტყობინება
-      await BackgroundService.forceStop();
+      await ParkingMonitor.instance.stop();
       await NotificationService.cancelAll();
       
       // წავშალოთ პარკირების მონაცემები
@@ -897,16 +871,12 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
     try {
       if (Platform.isAndroid) {
         // გამოვიყენოთ Android-ის ნატიური მეთოდი აპლიკაციის მინიმიზაციისთვის
-        await const MethodChannel('com.findall.ParkingReminder/minimize')
-            .invokeMethod('moveTaskToBack');
-        
-        // დავრწმუნდეთ რომ ფონური სერვისი მუშაობს
-        await BackgroundService.start();
+        await _minimizeChannel.invokeMethod('moveTaskToBack');
+        await ParkingMonitor.instance.start();
       }
     } catch (e) {
-      print('Error minimizing app: $e');
-      // თუ მინიმიზაცია ვერ მოხერხდა, მაინც გავუშვათ ფონური სერვისი
-      await BackgroundService.start();
+      debugPrint('Error minimizing app: $e');
+      await ParkingMonitor.instance.start();
     }
   }
 

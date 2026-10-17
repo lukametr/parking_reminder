@@ -1,16 +1,21 @@
-# parking_upp_new
+# პარკინგის შეხსენება
 
-A new Flutter project.
+Android Flutter app for Tbilisi zonal parking lots (`com.findall.ParkingReminder`).
 
-## Getting Started
+Lots are loaded from Firebase Firestore collection `parkings`. Monitoring uses a native **foreground location service** (Play Fused Location, Activity Recognition, nearby geofences) — not a 10-second Dart GPS poll.
 
-This project is a starting point for a Flutter application.
+## Run
 
-A few resources to get you started if this is your first Flutter project:
+```bash
+# Maps/Places: put MAPS_API_KEY in android/local.properties (see android/maps.properties.example).
+# Rotate the old public GitHub key before production.
+flutter pub get
+flutter test
+flutter build apk --debug
+```
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+`google-services.json` for this package is already in `android/app/` (project `parkingreminder-6466d`). Do not regenerate unless the Android app id changes.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Play
+
+See `docs/PLAY_SIGNING.md` and `privacy-policy.md`.
