@@ -71,11 +71,6 @@ class MainActivity : FlutterActivity() {
                         )
                         result.success(null)
                     }
-                    "scheduleReminder" -> {
-                        val ms = (call.arguments as? Number)?.toLong() ?: (55L * 60L * 1000L)
-                        ParkingMonitorService.scheduleReminder(this, ms)
-                        result.success(null)
-                    }
                     else -> result.notImplemented()
                 }
             }

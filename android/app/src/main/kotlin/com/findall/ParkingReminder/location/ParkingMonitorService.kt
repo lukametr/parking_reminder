@@ -1,7 +1,6 @@
 package com.findall.ParkingReminder.location
 
 import android.Manifest
-import android.app.AlarmManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
@@ -10,7 +9,6 @@ import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import android.os.SystemClock
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ServiceCompat
 import com.google.android.gms.location.ActivityRecognition
@@ -78,13 +76,6 @@ class ParkingMonitorService : Service() {
             }
             ACTION_GEOFENCE_ENTER -> {
                 applyLocationMode(DetectedActivity.STILL)
-            }
-            ACTION_REMINDER -> {
-                ParkingNotifier.showAlert(
-                    this,
-                    "პარკინგის შეხსენება",
-                    "გადაამოწმეთ პარკინგის დრო/ლოტი.",
-                )
             }
             ACTION_RELOAD_LOTS -> {
                 index = LotIndex(LotStore.load(this))
@@ -171,8 +162,8 @@ class ParkingMonitorService : Service() {
                 lastNotifyMs = now
                 ParkingNotifier.showAlert(
                     this,
-                    "ზონალური პარკირება",
-                    "ლოტი ${lots.joinToString(" ან ")} — გადაამოწმეთ ნომერი.",
+                    "ფასიანი პარკირების ლოტი",
+                    "ლოტი ${lots.joinToString(" ან ")} — გსურთ ჩართოთ პარკირება ოფიციალურ აპში?",
                     lots.joinToString(" ან "),
                 )
             }
@@ -247,7 +238,6 @@ class ParkingMonitorService : Service() {
         const val ACTION_STOP = "com.findall.ParkingReminder.STOP"
         const val ACTION_ACTIVITY = "com.findall.ParkingReminder.ACTIVITY"
         const val ACTION_GEOFENCE_ENTER = "com.findall.ParkingReminder.GEOFENCE_ENTER"
-        const val ACTION_REMINDER = "com.findall.ParkingReminder.REMINDER"
         const val ACTION_RELOAD_LOTS = "com.findall.ParkingReminder.RELOAD_LOTS"
         const val EXTRA_ACTIVITY = "activity"
         const val PREFS = "parking_monitor"
@@ -265,21 +255,6 @@ class ParkingMonitorService : Service() {
         fun stop(context: Context) {
             val i = Intent(context, ParkingMonitorService::class.java).setAction(ACTION_STOP)
             context.startService(i)
-        }
-
-        fun scheduleReminder(context: Context, delayMs: Long) {
-            val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            val pi = PendingIntent.getService(
-                context,
-                55,
-                Intent(context, ParkingMonitorService::class.java).setAction(ACTION_REMINDER),
-                immutable(),
-            )
-            am.setAndAllowWhileIdle(
-                AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                SystemClock.elapsedRealtime() + delayMs,
-                pi,
-            )
         }
 
         private fun immutable(): Int {

@@ -1,0 +1,25 @@
+{
+  "conditions": [],
+  "parameters": {
+    "ads_enabled": {
+      "defaultValue": { "value": "true" },
+      "valueType": "BOOLEAN"
+    },
+    "banner_ad_frequency": {
+      "defaultValue": { "value": "3" },
+      "valueType": "NUMBER"
+    },
+    "interstitial_ad_frequency": {
+      "defaultValue": { "value": "10" },
+      "valueType": "NUMBER"
+    },
+    "background_image_url": {
+      "defaultValue": { "value": "" },
+      "valueType": "STRING"
+    },
+    "popup_background_url": {
+      "defaultValue": { "value": "" },
+      "valueType": "STRING"
+    }
+  }
+}

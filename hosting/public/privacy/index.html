@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>პრივატულობის პოლიტიკა — პარკინგის შეხსენება</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 44rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+    h1,h2 { line-height: 1.25; }
+  </style>
+</head>
+<body>
+  <h1>პრივატულობის პოლიტიკა</h1>
+  <p>Last updated: 17 October 2026</p>
+  <p>აპი <strong>პარკინგის შეხსენება</strong> (Android პაკეტი <code>com.findall.ParkingReminder</code>) თბილისის ზონალურ პარკინგზე შეხსენებას აკეთებს.</p>
+  <h2>ლოკაცია (ვაგროვებთ)</h2>
+  <p>ძირითადი ფუნქცია საჭიროებს <strong>ზუსტ ლოკაციას</strong>, მათ შორის <strong>ფონში</strong> და გადატვირთვის შემდეგ, თუ მონიტორინგი ჩართულია.</p>
+  <ul>
+    <li>თქვენს კოორდინატს ვადარებთ Firestore <code>parkings</code> ლოტებს (~15 მ). გაჩერებისას გეკითხებით, ჩართოთ თუ არა პარკირება ოფიციალურ აპში; გასვლისას — გამორთვა. დროის countdown არ გვაქვს (საფასური წუთებშია).</li>
+    <li>ლოკაცია მუშავდება <strong>ტელეფონზე</strong> foreground სერვისში (მუდმივი შეტყობინება „მონიტორინგი ჩართულია“).</li>
+    <li>ანგარიში არ გვჭირდება. GPS ტრეკს სერვერზე არ ვტვირთავთ. სესია ინახება ლოკალურად.</li>
+    <li>თუ უარს იტყვით „ყოველთვის“-ზე, ფონური შეხსენება არ იმუშავებს.</li>
+  </ul>
+  <h2>სხვა მონაცემები</h2>
+  <ul>
+    <li>Crashlytics — კრეშის ლოგი</li>
+    <li>Remote Config / AdMob — რეკლამა და პარამეტრები</li>
+    <li>Maps/Places — სერვისების რუკა (თუ გასაღები კონფიგურირებულია)</li>
+    <li>SOS — მხოლოდ ტელეფონის აკრეფა (112 / დაზღვევა)</li>
+  </ul>
+  <p>მონაცემებს არ ვყიდით.</p>
+  <p>წყარო: <a href="https://github.com/lukametr/parking_reminder">github.com/lukametr/parking_reminder</a></p>
+</body>
+</html>

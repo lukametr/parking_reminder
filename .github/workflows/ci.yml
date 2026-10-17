@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [play-store-modernize, main, feature/update-background-services]
+  pull_request:
+
+jobs:
+  analyze-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze lib test
+      - run: flutter test
+
+  debug-apk:
+    runs-on: ubuntu-latest
+    needs: analyze-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - uses: android-actions/setup-android@v3
+      - name: Local properties (Maps key from secret if present)
+        env:
+          MAPS_API_KEY: ${{ secrets.MAPS_API_KEY }}
+        run: |
+          FLUTTER_SDK="${FLUTTER_ROOT:-$FLUTTER_HOME}"
+          if [ -z "$FLUTTER_SDK" ]; then FLUTTER_SDK="$(dirname "$(dirname "$(which flutter)")")"; fi
+          {
+            echo "flutter.sdk=$FLUTTER_SDK"
+            echo "sdk.dir=${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+            echo "MAPS_API_KEY=${MAPS_API_KEY}"
+          } > android/local.properties
+      - run: flutter pub get
+      - run: flutter build apk --debug --dart-define=MAPS_API_KEY=${{ secrets.MAPS_API_KEY }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+
+  pages:
+    if: github.ref == 'refs/heads/play-store-modernize' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish privacy policy via GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: hosting/public
+          publish_branch: gh-pages
+          force_orphan: true

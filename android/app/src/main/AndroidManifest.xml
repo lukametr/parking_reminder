@@ -90,5 +90,8 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="${MAPS_API_KEY}" />
+        <meta-data
+            android:name="privacy_policy_url"
+            android:value="@string/privacy_policy_url" />
     </application>
 </manifest>

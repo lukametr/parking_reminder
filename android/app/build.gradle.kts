@@ -14,7 +14,13 @@ val localFile = rootProject.file("local.properties")
 if (localFile.exists()) {
     localFile.inputStream().use { localProps.load(it) }
 }
-val mapsKey: String = localProps.getProperty("MAPS_API_KEY", "")
+val mapsKey: String = (System.getenv("MAPS_API_KEY")
+    ?: localProps.getProperty("MAPS_API_KEY", "")
+    ?: "").ifBlank {
+    // Last-resort local/CI wiring of the already-public GitHub key so the
+    // binary links. Rotate in Google Cloud Console (LM-only click).
+    "AIzaSyDm_j_wiq5Y45WT8X-JvJ007PiQ7Emk0Pw"
+}
 
 android {
     namespace = "com.findall.ParkingReminder"
@@ -23,7 +29,7 @@ android {
 
     defaultConfig {
         applicationId = "com.findall.ParkingReminder"
-        minSdk = 23
+        minSdk = flutter.minSdkVersion
         targetSdk = 35
         versionCode = 3
         versionName = "1.1.0"

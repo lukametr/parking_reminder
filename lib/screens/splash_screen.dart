@@ -116,11 +116,11 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
     unawaited(_session.processFix(
       latitude: event.latitude,
       longitude: event.longitude,
-      accuracyMeters: event.accuracy,
-      speedMps: event.speed,
-      nearbyLotNumbers: event.lots,
     ));
-    if (event.type == 'lots' && event.lots.isNotEmpty && mounted) {
+    if (event.type == 'lots' &&
+        event.lots.isNotEmpty &&
+        (event.activity == 'still' || event.speed < 1.2) &&
+        mounted) {
       _showParkingNotification(event.lots.join(' ან '));
     }
   }
@@ -201,10 +201,12 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
     if (mounted) {
       OverlayNotification.show(
         context: context,
-        title: 'ზონალური პარკირების ზონა № $lotsText',
-        message: 'გსურთ პარკირების დაწყება?',
+        title: 'ლოტი № $lotsText',
+        message:
+            'ფასიან პარკირების ადგილზე ხართ. გსურთ დარჩეთ და ოფიციალურ აპში ჩართოთ პარკირება?',
         duration: const Duration(seconds: 10),
         icon: const Icon(Icons.directions_car, color: Colors.white, size: 28),
+        confirmLabel: 'გახსენით პარკირების აპი',
         onConfirm: () => _startParking(lotsText),
         onCancel: () => _cancelParking(),
         onExit: () => _cancelParking(),
@@ -230,10 +232,12 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
       if (mounted) {
         OverlayNotification.show(
           context: context,
-          title: 'ზონალური პარკირების ზონა № $payload',
-          message: 'გსურთ პარკირების დაწყება?',
+          title: 'ლოტი № $payload',
+          message:
+              'ფასიან პარკირების ადგილზე ხართ. გსურთ დარჩეთ და ოფიციალურ აპში ჩართოთ პარკირება?',
           duration: const Duration(seconds: 10),
           icon: const Icon(Icons.directions_car, color: Colors.white, size: 28),
+          confirmLabel: 'გახსენით პარკირების აპი',
           onConfirm: () => _startParking(payload ?? ''),
           onCancel: () => _cancelParking(),
           onExit: () => _cancelParking(),
@@ -829,14 +833,6 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
         lotNumber: mainLot,
         latitude: position.latitude,
         longitude: position.longitude,
-      );
-      await const MethodChannel('com.findall.ParkingReminder/monitor')
-          .invokeMethod<void>('scheduleReminder', 55 * 60 * 1000);
-      
-      // Show notification
-      await NotificationService.showParkingNotification(
-        lotNumber: lotNumber,
-        position: position,
       );
       
       // Try to open parking app

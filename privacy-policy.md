@@ -8,7 +8,7 @@ This app (**პარკინგის შეხსენება**, Android p
 
 The core feature requires **precise location**, including **while the app is in the background** and after reboot if you enable monitoring.
 
-- We compare your position to public Tbilisi parking-lot coordinates (Firestore `parkings`) to detect nearby lots (~15 m) and to remind you after about 55 minutes or when you leave a parked spot.
+- We compare your position to public Tbilisi parking-lot coordinates (Firestore `parkings`, ~15 m). If you stop on a lot we ask whether to start parking in the official MSDA app; when you leave we remind you to turn parking **off** there. There is **no** timed (55-minute / hourly) countdown — zonal parking is billed per minute.
 - Location is processed **on the device** in a foreground location service (persistent notification: “მონიტორინგი ჩართულია”).
 - We do **not** require a login. We do **not** upload ongoing GPS tracks. Parking sessions are stored **locally** on the phone.
 - If you deny “Allow all the time”, foreground reminders while the app is open may still work; **background reminders will not**.
@@ -34,7 +34,7 @@ We do not sell your data. We do not use your location to build advertising profi
 
 GitHub: [lukametr/parking_reminder](https://github.com/lukametr/parking_reminder)
 
-Host this file at a public HTTPS URL before Play Console Data safety. Firebase Hosting for this project is not deployed yet.
+Live HTML: https://cdn.jsdelivr.net/gh/lukametr/parking_reminder@gh-pages/privacy/index.html
 
 ## ქართულად (მოკლე)
 

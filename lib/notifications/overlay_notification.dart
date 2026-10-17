@@ -33,6 +33,7 @@ class OverlayNotification {
     VoidCallback? onExit,
     Widget? icon,
     bool persistent = false,
+    String confirmLabel = 'პარკირება',
   }) {
     // Close previous, if open
     if (_isVisible) dismiss();
@@ -128,7 +129,7 @@ class OverlayNotification {
                                           dismiss();
                                           onConfirm();
                                         },
-                                        child: const Text('პარკირება'),
+                                        child: Text(confirmLabel),
                                       ),
                                   ],
                                 ),

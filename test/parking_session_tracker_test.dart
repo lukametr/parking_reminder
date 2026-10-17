@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:parking_reminder/services/parking_session_tracker.dart';
-import 'package:parking_reminder/utils/stationary_detector.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -10,11 +9,8 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
-  test('beginSession stores lot locally', () async {
-    final ParkingSessionTracker t = ParkingSessionTracker(
-      detector: StationaryDetector(settle: Duration.zero),
-      reminder: const Duration(days: 1),
-    );
+  test('beginSession stores lot locally without a countdown', () async {
+    final ParkingSessionTracker t = ParkingSessionTracker();
     await t.beginSession(
       lotNumber: 'A010',
       latitude: 41.7,
