@@ -36,8 +36,15 @@ class ParkingMonitorService : Service() {
 
     private var index: LotIndex = LotIndex(emptyList())
     private var lastActivity = DetectedActivity.UNKNOWN
-    private var lastNotifyMs = 0L
     private var lastGeofenceUpdateMs = 0L
+    private var dwellLotsKey: String? = null
+    private var dwellSinceMs = 0L
+    private var lastPromptedKey: String? = null
+    private var lastLat = 0.0
+    private var lastLng = 0.0
+    private var lastSpeed = 0.0
+    private var lastLots: List<String> = emptyList()
+    private val promptPolicy by lazy { LotPromptPolicy(prefs()) }
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -95,6 +102,18 @@ class ParkingMonitorService : Service() {
                     .remove(PREF_PARK_LNG)
                     .putBoolean(PREF_LEFT_NOTIFIED, false)
                     .apply()
+            }
+            ACTION_DECLINE -> {
+                val lots = intent.getStringExtra(EXTRA_LOTS)
+                    ?.split(" ან ", ",", "\n")
+                    ?.map { it.trim() }
+                    ?.filter { it.isNotEmpty() }
+                    ?: lastLots
+                val lat = intent.getDoubleExtra(EXTRA_LAT, lastLat)
+                val lng = intent.getDoubleExtra(EXTRA_LNG, lastLng)
+                promptPolicy.decline(lots, lat, lng)
+                lastPromptedKey = null
+                prefs().edit().remove(LotPromptPolicy.PREF_PENDING_LOTS).apply()
             }
         }
         startAsForeground()
@@ -160,10 +179,15 @@ class ParkingMonitorService : Service() {
     }
 
     private fun onFix(lat: Double, lng: Double, accuracy: Double, speed: Double) {
-        val still = lastActivity == DetectedActivity.STILL || speed < 1.2
+        lastLat = lat
+        lastLng = lng
+        lastSpeed = speed
+        val still = isStationary(speed)
         val radius = if (still) 15.0 else 25.0
         val nearby = index.nearby(lat, lng, radius)
         val lots = nearby.map { it.lotNumber }
+        lastLots = lots
+        promptPolicy.noteFix(lots, lat, lng)
         MonitorBridge.emit(
             JSONObject()
                 .put("type", if (lots.isNotEmpty()) "lots" else "fix")
@@ -177,6 +201,8 @@ class ParkingMonitorService : Service() {
         maybeRefreshGeofences(lat, lng)
         val activeLot = prefs().getString(PREF_ACTIVE_LOT, null)
         if (activeLot != null) {
+            dwellLotsKey = null
+            lastPromptedKey = null
             val parkLat = prefs().getString(PREF_PARK_LAT, null)?.toDoubleOrNull()
             val parkLng = prefs().getString(PREF_PARK_LNG, null)?.toDoubleOrNull()
             if (parkLat != null && parkLng != null) {
@@ -197,18 +223,52 @@ class ParkingMonitorService : Service() {
             }
             return
         }
-        if (lots.isNotEmpty() && still) {
-            val now = System.currentTimeMillis()
-            if (now - lastNotifyMs > 60_000) {
-                lastNotifyMs = now
-                ParkingNotifier.showAlert(
-                    this,
-                    "ფასიანი პარკირების ლოტი",
-                    "ლოტი ${lots.joinToString(" ან ")} — გსურთ ჩართოთ პარკირება ოფიციალურ აპში?",
-                    lots.joinToString(" ან "),
-                )
-            }
+        maybePromptStay(lots, lat, lng, still)
+    }
+
+    private fun isStationary(speed: Double): Boolean {
+        if (speed >= 1.2) return false
+        return when (lastActivity) {
+            DetectedActivity.IN_VEHICLE, DetectedActivity.ON_BICYCLE -> false
+            else -> true
         }
+    }
+
+    private fun maybePromptStay(lots: List<String>, lat: Double, lng: Double, still: Boolean) {
+        if (!still || lots.isEmpty()) {
+            dwellLotsKey = null
+            dwellSinceMs = 0L
+            lastPromptedKey = null
+            return
+        }
+        val key = lots.sorted().joinToString("|")
+        val now = System.currentTimeMillis()
+        if (key != dwellLotsKey) {
+            dwellLotsKey = key
+            dwellSinceMs = now
+        }
+        if (key == lastPromptedKey) return
+        if (now - dwellSinceMs < LotPromptPolicy.DWELL_MS) return
+        if (!promptPolicy.canPrompt(lots, lat, lng)) return
+        lastPromptedKey = key
+        val joined = lots.joinToString(" ან ")
+        prefs().edit().putString(LotPromptPolicy.PREF_PENDING_LOTS, joined).apply()
+        MonitorBridge.emit(
+            JSONObject()
+                .put("type", "prompt")
+                .put("lots", org.json.JSONArray(lots))
+                .put("lat", lat)
+                .put("lng", lng)
+                .put("accuracy", 0)
+                .put("speed", lastSpeed)
+                .put("activity", activityName(lastActivity)),
+        )
+        ParkingNotifier.showStayPrompt(
+            this,
+            "ფასიანი პარკირების ლოტი",
+            "ლოტი $joined — გსურთ დარჩეთ და ოფიციალურ აპში ჩართოთ პარკირება?",
+            joined,
+        )
     }
 
     private fun maybeRefreshGeofences(lat: Double, lng: Double) {
@@ -282,10 +342,14 @@ class ParkingMonitorService : Service() {
         const val ACTION_RELOAD_LOTS = "com.lukacode.sosapp.RELOAD_LOTS"
         const val ACTION_SET_SESSION = "com.lukacode.sosapp.SET_SESSION"
         const val ACTION_CLEAR_SESSION = "com.lukacode.sosapp.CLEAR_SESSION"
+        const val ACTION_DECLINE = "com.lukacode.sosapp.DECLINE"
         const val EXTRA_ACTIVITY = "activity"
         const val EXTRA_LOT = "lot"
+        const val EXTRA_LOTS = "lots"
         const val EXTRA_LAT = "lat"
         const val EXTRA_LNG = "lng"
+        @Volatile
+        var appInForeground = false
         const val PREFS = "parking_monitor"
         const val PREF_WANTED = "monitor_wanted"
         const val PREF_ACTIVE_LOT = "active_lot"
@@ -306,6 +370,26 @@ class ParkingMonitorService : Service() {
         fun stop(context: Context) {
             val i = Intent(context, ParkingMonitorService::class.java).setAction(ACTION_STOP)
             context.startService(i)
+        }
+
+        fun decline(context: Context, lots: String, lat: Double, lng: Double) {
+            start(
+                context,
+                Intent()
+                    .setAction(ACTION_DECLINE)
+                    .putExtra(EXTRA_LOTS, lots)
+                    .putExtra(EXTRA_LAT, lat)
+                    .putExtra(EXTRA_LNG, lng),
+            )
+        }
+
+        fun consumePendingLots(context: Context): String? {
+            val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val lots = p.getString(LotPromptPolicy.PREF_PENDING_LOTS, null)
+            if (!lots.isNullOrBlank()) {
+                p.edit().remove(LotPromptPolicy.PREF_PENDING_LOTS).apply()
+            }
+            return lots
         }
 
         private fun immutable(): Int {

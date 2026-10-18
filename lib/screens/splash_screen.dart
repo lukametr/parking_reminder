@@ -58,6 +58,9 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
   String? _activeLotLabel;
   bool _isLoading = true;
   StreamSubscription<MonitorEvent>? _monitorSub;
+  String? _promptLots;
+  double _promptLat = 0;
+  double _promptLng = 0;
   BannerAd? _banner;
   InterstitialAd? _interstitial;
   bool _bannerReady = false;
@@ -103,6 +106,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
       await _parkingService.getAllParkings();
       await ParkingMonitor.instance.start();
       _monitorSub ??= ParkingMonitor.instance.events.listen(_onMonitorEvent);
+      await _consumePendingPrompt();
     } catch (e) {
       debugPrint('ERROR INITIALIZATION: $e');
     } finally {
@@ -162,11 +166,18 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
       longitude: event.longitude,
     ));
     if (_session.hasActiveSession) return;
-    if (event.type == 'lots' &&
-        event.lots.isNotEmpty &&
-        (event.activity == 'still' || event.speed < 1.2) &&
-        mounted) {
+    if (event.type == 'prompt' && event.lots.isNotEmpty && mounted) {
+      _promptLat = event.latitude;
+      _promptLng = event.longitude;
       _showParkingNotification(event.lots.join(' ან '));
+    }
+  }
+
+  Future<void> _consumePendingPrompt() async {
+    if (_session.hasActiveSession) return;
+    final String? lots = await ParkingMonitor.instance.consumePendingPrompt();
+    if (lots != null && lots.isNotEmpty && mounted) {
+      _showParkingNotification(lots);
     }
   }
 
@@ -180,6 +191,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
           'გამორთეთ პარკირება ოფიციალურ აპში (MSDA / ge.msda.parking).',
       icon: const Icon(Icons.exit_to_app, color: Colors.white, size: 28),
       confirmLabel: 'გახსენით პარკირების აპი',
+      cancelLabel: 'დახურვა',
       onConfirm: () => unawaited(_openParkingAppOrStore()),
       onCancel: () {},
       persistent: true,
@@ -274,6 +286,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
 
   void _showParkingNotification(String lotsText) async {
     if (OverlayNotification.isVisible || _session.hasActiveSession) return;
+    _promptLots = lotsText;
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now().millisecondsSinceEpoch;
     
@@ -290,6 +303,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
         duration: const Duration(seconds: 10),
         icon: const Icon(Icons.directions_car, color: Colors.white, size: 28),
         confirmLabel: 'გახსენით პარკირების აპი',
+        cancelLabel: 'არ ვჩერდები',
         onConfirm: () => _startParking(lotsText),
         onCancel: () => _cancelParking(),
         onExit: () => _cancelParking(),
@@ -321,6 +335,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
           duration: const Duration(seconds: 10),
           icon: const Icon(Icons.directions_car, color: Colors.white, size: 28),
           confirmLabel: 'გახსენით პარკირების აპი',
+          cancelLabel: 'არ ვჩერდები',
           onConfirm: () => _startParking(payload ?? ''),
           onCancel: () => _cancelParking(),
           onExit: () => _cancelParking(),
@@ -342,6 +357,9 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
       unawaited(ParkingMonitor.instance.start());
+    }
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_consumePendingPrompt());
     }
   }
 
@@ -1045,16 +1063,27 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
   }
 
   Future<void> _cancelParking() async {
-    // ვაუქმებთ შეტყობინებებს
     await NotificationService.cancelAll();
     OverlayNotification.dismiss();
-    
-    // ვაგზავნით შეტყობინებას, რომ პარკირება გაუქმებულია
+    double lat = _promptLat;
+    double lng = _promptLng;
+    if (lat == 0 && lng == 0) {
+      try {
+        final Position pos = await Geolocator.getCurrentPosition();
+        lat = pos.latitude;
+        lng = pos.longitude;
+      } catch (_) {}
+    }
+    await ParkingMonitor.instance.declinePrompt(
+      lots: _promptLots ?? '',
+      latitude: lat,
+      longitude: lng,
+    );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('პარკირება გაუქმებულია'),
-          duration: Duration(seconds: 2),
+          content: Text('არ ვჩერდებით — 10 წუთი აღარ შეგეკითხებით'),
+          duration: Duration(seconds: 3),
         ),
       );
     }

@@ -125,26 +125,10 @@ class NotificationService {
       importance: Importance.high,
       priority: Priority.high,
       showWhen: true,
-      actions: isLeavingZone ? [] : [
-        const AndroidNotificationAction(
-          'open_app',
-          'დაწყება',
-          showsUserInterface: true,
-          cancelNotification: true,
-        ),
-        const AndroidNotificationAction(
-          'block_notifications',
-          'საცობი',
-          showsUserInterface: false,
-          cancelNotification: true,
-        ),
-        const AndroidNotificationAction(
-          'cancel',
-          'გაუქმება',
-          showsUserInterface: false,
-          cancelNotification: true,
-        ),
-      ],
+      icon: '@drawable/ic_notification',
+      fullScreenIntent: true,
+      category: AndroidNotificationCategory.alarm,
+      styleInformation: BigTextStyleInformation(body),
     );
 
     final notificationDetails = NotificationDetails(
@@ -282,26 +266,9 @@ class NotificationService {
       importance: Importance.high,
       priority: Priority.high,
       showWhen: true,
-      actions: [
-        const AndroidNotificationAction(
-          'open_app',
-          'დაწყება',
-          showsUserInterface: true,
-          cancelNotification: true,
-        ),
-        const AndroidNotificationAction(
-          'block_notifications',
-          'საცობი',
-          showsUserInterface: false,
-          cancelNotification: true,
-        ),
-        const AndroidNotificationAction(
-          'cancel',
-          'გაუქმება',
-          showsUserInterface: false,
-          cancelNotification: true,
-        ),
-      ],
+      icon: '@drawable/ic_notification',
+      fullScreenIntent: true,
+      category: AndroidNotificationCategory.alarm,
     );
 
     final notificationDetails = NotificationDetails(

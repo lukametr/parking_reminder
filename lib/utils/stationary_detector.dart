@@ -8,7 +8,7 @@ class StationaryDetector {
     this.maxAccuracyMeters = 48,
     this.maxSpeedMps = 1.15,
     this.moveThresholdM = 22,
-    this.settle = const Duration(seconds: 8),
+    this.settle = const Duration(seconds: 5),
   });
 
   final double maxAccuracyMeters;

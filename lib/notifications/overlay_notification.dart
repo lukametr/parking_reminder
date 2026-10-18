@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 
-/// POPUP NOTIFICATION
+/// Full-screen stay/leave dialog sized for small phones (stacked actions).
 class OverlayNotification {
   static OverlayEntry? _overlayEntry;
   static Timer? _dismissTimer;
@@ -12,17 +12,6 @@ class OverlayNotification {
 
   static bool get isVisible => _isVisible;
 
-  /// SHOW NOTIFICATION
-  ///
-  /// [context]    — context
-  /// [title]      — title
-  /// [message]    — message
-  /// [duration]   — duration
-  /// [onConfirm]  — onConfirm
-  /// [onCancel]   — onCancel
-  /// [onExit]     — onExit
-  /// [icon]       — icon
-  /// [persistent] — persistent
   static void show({
     required BuildContext context,
     required String title,
@@ -34,123 +23,143 @@ class OverlayNotification {
     Widget? icon,
     bool persistent = false,
     String confirmLabel = 'პარკირება',
+    String cancelLabel = 'არ ვჩერდები',
   }) {
-    // Close previous, if open
     if (_isVisible) dismiss();
     _isVisible = true;
 
-    _overlayEntry = OverlayEntry(builder: (ctx) {
+    _overlayEntry = OverlayEntry(builder: (BuildContext ctx) {
+      final Size size = MediaQuery.sizeOf(ctx);
+      final double maxW = size.width > 48 ? size.width - 24 : size.width;
       return Stack(
         children: [
-          // DARK FILTER
           Positioned.fill(
             child: GestureDetector(
               onTap: () {},
               child: Container(
-                color: Colors.black.withValues(alpha: 0.4),
+                color: Colors.black.withValues(alpha: 0.45),
               ),
             ),
           ),
-          Center(
-            child: Material(
-              color: Colors.transparent,
-              child: Card(
-                elevation: 8,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: FutureBuilder<String?>(
-                  future: fetchPopupBackgroundUrl(),
-                  builder: (context, snapshot) {
-                    final imageUrl = snapshot.data;
-                    return Stack(
-                      children: [
-                        if (imageUrl != null && imageUrl.isNotEmpty)
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: Image.network(
-                              imageUrl,
-                              width: 320,
-                              height: null,
-                              fit: BoxFit.cover,
+          SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxW, maxHeight: size.height * 0.85),
+                child: Material(
+                  color: Colors.transparent,
+                  child: Card(
+                    elevation: 8,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: FutureBuilder<String?>(
+                      future: fetchPopupBackgroundUrl(),
+                      builder: (BuildContext context, AsyncSnapshot<String?> snapshot) {
+                        final String? imageUrl = snapshot.data;
+                        return Stack(
+                          children: [
+                            if (imageUrl != null && imageUrl.isNotEmpty)
+                              Positioned.fill(
+                                child: Image.network(
+                                  imageUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, Object _, StackTrace? __) =>
+                                      const SizedBox.shrink(),
+                                ),
+                              ),
+                            Container(
+                              color: Colors.black.withValues(alpha: 0.45),
                             ),
-                          ),
-                        // გამჭვირვალე შავი ფენა ტექსტისთვის
-                        Container(
-                          width: 320,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.3),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        // ტექსტი და ღილაკები
-                        Positioned.fill(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (icon != null) ...[
-                                  icon,
-                                  const SizedBox(height: 12),
-                                ],
-                                Text(title,
-                                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-                                const SizedBox(height: 10),
-                                Text(message,
-                                    style: const TextStyle(fontSize: 16, color: Colors.white), textAlign: TextAlign.center),
-                                const SizedBox(height: 18),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                  children: [
-                                    if (onCancel != null)
-                                      ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.grey[200],
-                                          foregroundColor: Colors.black,
-                                          elevation: 0,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                        ),
-                                        onPressed: () {
-                                          dismiss();
-                                          onCancel();
-                                        },
-                                        child: const Text('გაუქმება'),
-                                      ),
-                                    if (onConfirm != null)
-                                      ElevatedButton(
+                            SingleChildScrollView(
+                              padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (icon != null) ...[
+                                    icon,
+                                    const SizedBox(height: 12),
+                                  ],
+                                  Text(
+                                    title,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    message,
+                                    style: const TextStyle(fontSize: 15, color: Colors.white),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 18),
+                                  if (onConfirm != null)
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton(
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.blue,
                                           foregroundColor: Colors.white,
                                           elevation: 0,
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                          padding: const EdgeInsets.symmetric(vertical: 12),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
                                         ),
                                         onPressed: () {
                                           dismiss();
                                           onConfirm();
                                         },
-                                        child: Text(confirmLabel),
+                                        child: Text(
+                                          confirmLabel,
+                                          textAlign: TextAlign.center,
+                                        ),
                                       ),
+                                    ),
+                                  if (onCancel != null) ...[
+                                    const SizedBox(height: 8),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.grey[200],
+                                          foregroundColor: Colors.black,
+                                          elevation: 0,
+                                          padding: const EdgeInsets.symmetric(vertical: 12),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                        onPressed: () {
+                                          dismiss();
+                                          onCancel();
+                                        },
+                                        child: Text(
+                                          cancelLabel,
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    ),
                                   ],
-                                ),
-                                if (onExit != null)
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: IconButton(
+                                  if (onExit != null)
+                                    IconButton(
                                       icon: const Icon(Icons.close, color: Colors.white70, size: 22),
                                       onPressed: () {
                                         dismiss();
                                         onExit();
                                       },
                                     ),
-                                  ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
+                          ],
+                        );
+                      },
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -165,7 +174,6 @@ class OverlayNotification {
     }
   }
 
-  /// CLOSE NOTIFICATION
   static void dismiss() {
     _dismissTimer?.cancel();
     _dismissTimer = null;
@@ -174,9 +182,8 @@ class OverlayNotification {
     _isVisible = false;
   }
 
-  // Remote Config-დან popup-ის ფონის URL-ის წამოღების ფუნქცია
   static Future<String?> fetchPopupBackgroundUrl() async {
-    final remoteConfig = FirebaseRemoteConfig.instance;
+    final FirebaseRemoteConfig remoteConfig = FirebaseRemoteConfig.instance;
     await remoteConfig.setConfigSettings(RemoteConfigSettings(
       fetchTimeout: const Duration(seconds: 10),
       minimumFetchInterval: const Duration(minutes: 5),

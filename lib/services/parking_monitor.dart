@@ -80,6 +80,24 @@ class ParkingMonitor {
     if (!Platform.isAndroid) return;
     await _methods.invokeMethod<void>('clearSession');
   }
+
+  Future<void> declinePrompt({
+    required String lots,
+    required double latitude,
+    required double longitude,
+  }) async {
+    if (!Platform.isAndroid) return;
+    await _methods.invokeMethod<void>('declinePrompt', <String, Object>{
+      'lots': lots,
+      'lat': latitude,
+      'lng': longitude,
+    });
+  }
+
+  Future<String?> consumePendingPrompt() async {
+    if (!Platform.isAndroid) return null;
+    return _methods.invokeMethod<String>('consumePendingPrompt');
+  }
 }
 
 class MonitorEvent {

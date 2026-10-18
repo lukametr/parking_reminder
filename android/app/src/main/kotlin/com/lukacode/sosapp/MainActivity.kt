@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import androidx.core.content.ContextCompat
+import com.lukacode.sosapp.location.LotPromptPolicy
 import com.lukacode.sosapp.location.LotStore
 import com.lukacode.sosapp.location.MonitorBridge
 import com.lukacode.sosapp.location.ParkingMonitorService
@@ -25,6 +26,25 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         ParkingNotifier.ensureChannels(this)
+        maybeUnlockForPrompt(intent)
+        capturePrompt(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        maybeUnlockForPrompt(intent)
+        capturePrompt(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        ParkingMonitorService.appInForeground = true
+    }
+
+    override fun onPause() {
+        ParkingMonitorService.appInForeground = false
+        super.onPause()
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -93,6 +113,28 @@ class MainActivity : FlutterActivity() {
                         )
                         result.success(null)
                     }
+                    "declinePrompt" -> {
+                        val args = call.arguments as? Map<*, *>
+                        val lots = args?.get("lots") as? String ?: ""
+                        val lat = (args?.get("lat") as? Number)?.toDouble() ?: 0.0
+                        val lng = (args?.get("lng") as? Number)?.toDouble() ?: 0.0
+                        ParkingMonitorService.decline(this, lots, lat, lng)
+                        result.success(null)
+                    }
+                    "consumePendingPrompt" -> {
+                        val fromIntent = intent.getStringExtra("lots")
+                        if (!fromIntent.isNullOrBlank()) {
+                            intent.removeExtra("lots")
+                            intent.removeExtra("show_prompt")
+                        }
+                        val pending = ParkingMonitorService.consumePendingLots(this)
+                        result.success(
+                            when {
+                                !fromIntent.isNullOrBlank() -> fromIntent
+                                else -> pending
+                            },
+                        )
+                    }
                     else -> result.notImplemented()
                 }
             }
@@ -107,6 +149,27 @@ class MainActivity : FlutterActivity() {
                     MonitorBridge.sink = null
                 }
             })
+    }
+
+    private fun capturePrompt(intent: Intent?) {
+        val lots = intent?.getStringExtra("lots")
+        if (lots.isNullOrBlank()) return
+        getSharedPreferences(ParkingMonitorService.PREFS, MODE_PRIVATE)
+            .edit()
+            .putString(LotPromptPolicy.PREF_PENDING_LOTS, lots)
+            .apply()
+    }
+
+    private fun maybeUnlockForPrompt(intent: Intent?) {
+        if (intent == null) return
+        val prompt = intent.getBooleanExtra("show_prompt", false) ||
+            intent.getBooleanExtra("leave_lot", false) ||
+            !intent.getStringExtra("lots").isNullOrBlank()
+        if (!prompt) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
     }
 
     private fun hasAlwaysLocation(): Boolean {

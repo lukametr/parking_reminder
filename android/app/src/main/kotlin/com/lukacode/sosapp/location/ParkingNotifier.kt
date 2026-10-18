@@ -14,7 +14,7 @@ import com.lukacode.sosapp.R
 object ParkingNotifier {
     /** New id: old `parking_monitor` was IMPORTANCE_LOW and Android never upgrades it. */
     const val CHANNEL_MONITOR = "parking_monitor_ongoing"
-    const val CHANNEL_ALERTS = "parking_alerts"
+    const val CHANNEL_ALERTS = "parking_alerts_heads"
     const val MONITOR_ID = 888
     const val ALERT_ID = 890
     const val REMINDER_ID = 891
@@ -40,7 +40,11 @@ object ParkingNotifier {
                 CHANNEL_ALERTS,
                 "პარკინგის შეხსენებები",
                 NotificationManager.IMPORTANCE_HIGH,
-            ),
+            ).apply {
+                description = "Stay / leave prompts — heads-up and lock screen"
+                enableVibration(true)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            },
         )
     }
 
@@ -67,42 +71,73 @@ object ParkingNotifier {
             .build()
     }
 
+    fun showStayPrompt(context: Context, title: String, body: String, extraLots: String? = null) {
+        if (ParkingMonitorService.appInForeground) return
+        notifyFullScreen(
+            context,
+            ALERT_ID,
+            title,
+            body,
+            Intent(context, MainActivity::class.java).apply {
+                addFlags(
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_NEW_TASK,
+                )
+                putExtra("lots", extraLots)
+                putExtra("show_prompt", true)
+            },
+            requestCode = 11,
+        )
+    }
+
     fun showAlert(context: Context, title: String, body: String, extraLots: String? = null) {
-        ensureChannels(context)
-        val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("lots", extraLots)
-        }
-        val pi = PendingIntent.getActivity(context, 1, intent, pendingFlags())
-        val n = NotificationCompat.Builder(context, CHANNEL_ALERTS)
-            .setContentTitle(title)
-            .setContentText(body)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setAutoCancel(true)
-            .setContentIntent(pi)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .build()
-        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        nm.notify(ALERT_ID, n)
+        showStayPrompt(context, title, body, extraLots)
     }
 
     fun showLeaveAlert(context: Context, title: String, body: String) {
+        notifyFullScreen(
+            context,
+            REMINDER_ID,
+            title,
+            body,
+            Intent(context, MainActivity::class.java).apply {
+                addFlags(
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_NEW_TASK,
+                )
+                putExtra("leave_lot", true)
+            },
+            requestCode = 12,
+        )
+    }
+
+    private fun notifyFullScreen(
+        context: Context,
+        id: Int,
+        title: String,
+        body: String,
+        intent: Intent,
+        requestCode: Int,
+    ) {
         ensureChannels(context)
-        val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("leave_lot", true)
-        }
-        val pi = PendingIntent.getActivity(context, 2, intent, pendingFlags())
+        val pi = PendingIntent.getActivity(context, requestCode, intent, pendingFlags())
         val n = NotificationCompat.Builder(context, CHANNEL_ALERTS)
             .setContentTitle(title)
             .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setSmallIcon(R.drawable.ic_notification)
             .setAutoCancel(true)
             .setContentIntent(pi)
+            .setFullScreenIntent(pi, true)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .build()
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        nm.notify(REMINDER_ID, n)
+        nm.notify(id, n)
     }
 
     private fun pendingFlags(): Int {

@@ -28,8 +28,8 @@ android {
         applicationId = "com.lukacode.sosapp"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
-        versionCode = 10
-        versionName = "1.1.5"
+        versionCode = 11
+        versionName = "1.1.6"
         multiDexEnabled = true
         manifestPlaceholders["MAPS_API_KEY"] = mapsKey
     }
