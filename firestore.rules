@@ -7,7 +7,8 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Must not be world-readable. Enable Auth before opening these.
+    // Private: never world-readable/writable. App stores sessions locally.
+    // When Firebase Auth is added, replace with request.auth.uid checks.
     match /user_parkings/{docId} {
       allow read, write: if false;
     }

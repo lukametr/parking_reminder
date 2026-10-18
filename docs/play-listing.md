@@ -13,8 +13,8 @@ We cannot sign into LM’s Play account. Paste these.
 
 ფონური მონიტორინგი: Android foreground location (მუდმივი შეტყობინება). SOS: 112 და დაზღვევა. სერვისები: კვება, მაღაზია, აფთიაქი, საწვავი, ვულკანიზაცია.
 
-**Privacy policy URL:** https://cdn.jsdelivr.net/gh/lukametr/parking_reminder@gh-pages/privacy/index.html  
-(Preferred after Pages enable: https://lukametr.github.io/parking_reminder/privacy/)
+**Privacy policy URL:** https://parkingreminder-6466d.web.app/privacy/  
+(alt: https://parkingreminder-6466d.firebaseapp.com/privacy/ · jsDelivr backup: https://cdn.jsdelivr.net/gh/lukametr/parking_reminder@gh-pages/privacy/index.html)
 
 ## Data safety
 
