@@ -115,7 +115,10 @@ class ParkingMonitorService : Service() {
     }
 
     private fun startAsForeground() {
-        val n = ParkingNotifier.monitorNotification(this, "მონიტორინგი ჩართულია")
+        val n = ParkingNotifier.monitorNotification(
+            this,
+            "აპი ამოწმებს თბილისის ფასიან პარკირების ლოტებს",
+        )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             ServiceCompat.startForeground(
                 this,

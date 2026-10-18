@@ -12,7 +12,8 @@ import com.lukacode.sosapp.MainActivity
 import com.lukacode.sosapp.R
 
 object ParkingNotifier {
-    const val CHANNEL_MONITOR = "parking_monitor"
+    /** New id: old `parking_monitor` was IMPORTANCE_LOW and Android never upgrades it. */
+    const val CHANNEL_MONITOR = "parking_monitor_ongoing"
     const val CHANNEL_ALERTS = "parking_alerts"
     const val MONITOR_ID = 888
     const val ALERT_ID = 890
@@ -25,8 +26,14 @@ object ParkingNotifier {
             NotificationChannel(
                 CHANNEL_MONITOR,
                 "პარკინგის მონიტორინგი",
-                NotificationManager.IMPORTANCE_LOW,
-            ).apply { description = "მუდმივი შეტყობინება, სანამ ლოკაცია იზომება" },
+                NotificationManager.IMPORTANCE_DEFAULT,
+            ).apply {
+                description = "მუდმივი შეტყობინება, სანამ ლოკაცია იზომება"
+                setShowBadge(false)
+                enableVibration(false)
+                setSound(null, null)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            },
         )
         nm.createNotificationChannel(
             NotificationChannel(
@@ -46,10 +53,15 @@ object ParkingNotifier {
             pendingFlags(),
         )
         return NotificationCompat.Builder(context, CHANNEL_MONITOR)
-            .setContentTitle("პარკინგის შეხსენება")
+            .setContentTitle("პარკინგის მონიტორინგი ჩართულია")
             .setContentText(text)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(launch)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build()
@@ -65,7 +77,7 @@ object ParkingNotifier {
         val n = NotificationCompat.Builder(context, CHANNEL_ALERTS)
             .setContentTitle(title)
             .setContentText(body)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification)
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -84,7 +96,7 @@ object ParkingNotifier {
         val n = NotificationCompat.Builder(context, CHANNEL_ALERTS)
             .setContentTitle(title)
             .setContentText(body)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification)
             .setAutoCancel(true)
             .setContentIntent(pi)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
