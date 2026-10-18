@@ -216,8 +216,9 @@ class NotificationService {
         await android?.getActiveNotifications();
     if (active != null) {
       for (final ActiveNotification n in active) {
-        if (n.id == foregroundMonitorId) continue;
-        await _flnp.cancel(n.id);
+        final int? id = n.id;
+        if (id == null || id == foregroundMonitorId) continue;
+        await _flnp.cancel(id);
       }
       return;
     }
