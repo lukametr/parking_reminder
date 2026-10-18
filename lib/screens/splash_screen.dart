@@ -12,7 +12,9 @@ import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:parking_reminder/config/ad_config.dart';
+import 'package:parking_reminder/config/privacy.dart';
 import 'package:parking_reminder/notifications/overlay_notification.dart';
+import 'package:parking_reminder/screens/location_disclosure_screen.dart';
 import 'package:parking_reminder/screens/auto_service_map_screen.dart';
 import 'package:parking_reminder/screens/food_map_screen.dart';
 import 'package:parking_reminder/screens/gas_station_map_screen.dart';
@@ -50,7 +52,7 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver {
-  static const _minimizeChannel = MethodChannel('com.findall.ParkingReminder/minimize');
+  static const _minimizeChannel = MethodChannel('com.lukacode.sosapp/minimize');
   final ParkingService _parkingService = ParkingService();
   late final ParkingSessionTracker _session;
   String? _activeLotLabel;
@@ -82,7 +84,9 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _session = ParkingSessionTracker(onLeftLot: _onLeftActiveLot);
-    _initializeApp();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_initializeApp());
+    });
   }
 
   Future<void> _initializeApp() async {
@@ -183,6 +187,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
   }
 
   Future<bool> _ensureLocationPermission() async {
+    if (!await _ensureLocationDisclosure()) return false;
     final LocationPermission existing = await Geolocator.checkPermission();
     if (existing == LocationPermission.deniedForever) {
       await _showAlwaysLocationDialog(deniedForever: true);
@@ -213,6 +218,27 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
     return true;
   }
 
+  Future<bool> _ensureLocationDisclosure() async {
+    if (!mounted) return false;
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(PrivacyConfig.disclosureAcceptedKey) == true) {
+      return true;
+    }
+    if (!mounted) return false;
+    final bool accepted = await LocationDisclosureScreen.present(context);
+    if (accepted) {
+      await prefs.setBool(PrivacyConfig.disclosureAcceptedKey, true);
+    }
+    return accepted;
+  }
+
+  Future<void> _openPrivacyPolicy() async {
+    await launchUrl(
+      Uri.parse(PrivacyConfig.policyUrl),
+      mode: LaunchMode.externalApplication,
+    );
+  }
+
   Future<bool> _showAlwaysLocationDialog({bool deniedForever = false}) async {
     if (!mounted) return false;
     final bool? ok = await showDialog<bool>(
@@ -232,7 +258,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('პარამეტრები'),
+            child: Text(deniedForever ? 'პარამეტრები' : 'გაგრძელება'),
           ),
         ],
       ),
@@ -279,7 +305,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
         final intent = AndroidIntent(
           action: 'android.intent.action.MAIN',
           category: 'android.intent.category.LAUNCHER',
-          package: 'com.findall.ParkingReminder',
+          package: 'com.lukacode.sosapp',
           flags: [Flag.FLAG_ACTIVITY_NEW_TASK],
         );
         await intent.launch();
@@ -534,6 +560,29 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
             right: 20,
             child: Row(
               children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => unawaited(_openPrivacyPolicy()),
+                      borderRadius: BorderRadius.circular(20),
+                      child: const Center(
+                        child: Icon(
+                          Icons.privacy_tip_outlined,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
                 Container(
                   width: 40,
                   height: 40,

@@ -1,4 +1,4 @@
-package com.findall.ParkingReminder.location
+package com.lukacode.sosapp.location
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -8,8 +8,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
-import com.findall.ParkingReminder.MainActivity
-import com.findall.ParkingReminder.R
+import com.lukacode.sosapp.MainActivity
+import com.lukacode.sosapp.R
 
 object ParkingNotifier {
     const val CHANNEL_MONITOR = "parking_monitor"

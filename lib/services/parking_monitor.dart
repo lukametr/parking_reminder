@@ -12,9 +12,9 @@ class ParkingMonitor {
   static final ParkingMonitor instance = ParkingMonitor._();
 
   static const MethodChannel _methods =
-      MethodChannel('com.findall.ParkingReminder/monitor');
+      MethodChannel('com.lukacode.sosapp/monitor');
   static const EventChannel _events =
-      EventChannel('com.findall.ParkingReminder/monitor_events');
+      EventChannel('com.lukacode.sosapp/monitor_events');
 
   Stream<MonitorEvent>? _eventStream;
 

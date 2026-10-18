@@ -1,4 +1,4 @@
-package com.findall.ParkingReminder
+package com.lukacode.sosapp
 
 import android.Manifest
 import android.content.Intent
@@ -8,19 +8,19 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import androidx.core.content.ContextCompat
-import com.findall.ParkingReminder.location.LotStore
-import com.findall.ParkingReminder.location.MonitorBridge
-import com.findall.ParkingReminder.location.ParkingMonitorService
-import com.findall.ParkingReminder.location.ParkingNotifier
+import com.lukacode.sosapp.location.LotStore
+import com.lukacode.sosapp.location.MonitorBridge
+import com.lukacode.sosapp.location.ParkingMonitorService
+import com.lukacode.sosapp.location.ParkingNotifier
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    private val minimizeChannel = "com.findall.ParkingReminder/minimize"
-    private val monitorChannel = "com.findall.ParkingReminder/monitor"
-    private val eventsChannel = "com.findall.ParkingReminder/monitor_events"
+    private val minimizeChannel = "com.lukacode.sosapp/minimize"
+    private val monitorChannel = "com.lukacode.sosapp/monitor"
+    private val eventsChannel = "com.lukacode.sosapp/monitor_events"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

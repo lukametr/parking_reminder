@@ -1,4 +1,4 @@
-package com.findall.ParkingReminder.location
+package com.lukacode.sosapp.location
 
 import kotlin.math.asin
 import kotlin.math.cos

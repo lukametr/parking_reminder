@@ -1,4 +1,4 @@
-package com.findall.ParkingReminder.location
+package com.lukacode.sosapp.location
 
 import android.content.Context
 import org.json.JSONArray

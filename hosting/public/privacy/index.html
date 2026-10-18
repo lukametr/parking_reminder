@@ -3,32 +3,48 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>პრივატულობის პოლიტიკა — პარკინგის შეხსენება</title>
+  <title>Privacy Policy — Parking Reminder +</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 44rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+    body { font-family: system-ui, sans-serif; max-width: 46rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.55; color: #111; }
     h1,h2 { line-height: 1.25; }
+    h2 { margin-top: 1.6rem; }
+    code { font-size: 0.92em; }
   </style>
 </head>
 <body>
-  <h1>პრივატულობის პოლიტიკა</h1>
-  <p>Last updated: 17 October 2026</p>
-  <p>აპი <strong>პარკინგის შეხსენება</strong> (Android პაკეტი <code>com.findall.ParkingReminder</code>) თბილისის ზონალურ პარკინგზე შეხსენებას აკეთებს.</p>
-  <h2>ლოკაცია (ვაგროვებთ)</h2>
-  <p>ძირითადი ფუნქცია საჭიროებს <strong>ზუსტ ლოკაციას</strong>, მათ შორის <strong>ფონში</strong> და გადატვირთვის შემდეგ, თუ მონიტორინგი ჩართულია.</p>
+  <h1>პრივატულობის პოლიტიკა / Privacy Policy</h1>
+  <p>Last updated: 18 October 2026</p>
+  <p><strong>Parking Reminder +</strong> (პარკინგის შეხსენება)<br/>
+     Developer listing · Android package <code>com.lukacode.sosapp</code></p>
+  <p>Contact: <a href="https://github.com/lukametr/parking_reminder">github.com/lukametr/parking_reminder</a></p>
+
+  <h2>ქართულად</h2>
+  <p>აპი თბილისის <strong>ფასიან ზონალურ პარკინგზე</strong> შეხსენებას აკეთებს. ანგარიში არ გვჭირდება.</p>
+  <h2>რა მონაცემს ვაგროვებთ</h2>
   <ul>
-    <li>თქვენს კოორდინატს ვადარებთ Firestore <code>parkings</code> ლოტებს (~15 მ). გაჩერებისას გეკითხებით, ჩართოთ თუ არა პარკირება ოფიციალურ აპში; გასვლისას — გამორთვა. დროის countdown არ გვაქვს (საფასური წუთებშია).</li>
-    <li>ლოკაცია მუშავდება <strong>ტელეფონზე</strong> foreground სერვისში (მუდმივი შეტყობინება „მონიტორინგი ჩართულია“).</li>
-    <li>ანგარიში არ გვჭირდება. GPS ტრეკს სერვერზე არ ვტვირთავთ. სესია ინახება ლოკალურად.</li>
-    <li>თუ უარს იტყვით „ყოველთვის“-ზე, ფონური შეხსენება არ იმუშავებს.</li>
+    <li><strong>ზუსტი ლოკაცია (GPS)</strong>, მათ შორის <strong>ფონში</strong> და გადატვირთვის შემდეგ, თუ ჩართულია მონიტორინგი. კოორდინატი მუშავდება <strong>ტელეფონზე</strong> foreground სერვისში (მუდმივი შეტყობინება). ვადარებთ Firestore კოლექციას <code>parkings</code> (~15 მ). გაჩერებაზე გეკითხებით ოფიციალურ აპში (<code>ge.msda.parking</code>) პარკირების ჩართვას; გასვლაზე — გამორთვას. GPS ტრეკს სერვერზე არ ვტვირთავთ. სესია ლოკალურია. ლოკაციას რეკლამის პროფილისთვის არ ვიყენებთ და არ ვყიდით.</li>
+    <li><strong>რეკლამა (Google AdMob)</strong> — ბანერი და interstitial. Google-მა შეიძლება გამოიყენოს სარეკლამო ID / მოწყობილობის სიგნალები თავისი პოლიტიკით. პერსონალიზაციის opt-out — ტელეფონის პარამეტრებში.</li>
+    <li><strong>კრეშის ლოგები (Firebase Crashlytics)</strong> — მოდელი, OS, stack trace, რომ გავასწოროთ შეცდომები.</li>
+    <li><strong>Firebase Remote Config</strong> — ფონის სურათის URL / რეკლამის დროშები.</li>
+    <li><strong>Maps / Places</strong> — თუ გახსნით სერვისების რუკას, Google Places იღებს მოთხოვნის მდებარეობას ახლომდებარე ობიექტებისთვის.</li>
+    <li><strong>SOS</strong> — 112 / დაზღვევა ხსნის აკრეფას. ზარს ჩვენ არ ვაკეთებთ და ნომერს არ ვინახავთ.</li>
   </ul>
-  <h2>სხვა მონაცემები</h2>
+  <h2>ნებართვები</h2>
   <ul>
-    <li>Crashlytics — კრეშის ლოგი</li>
-    <li>Remote Config / AdMob — რეკლამა და პარამეტრები</li>
-    <li>Maps/Places — სერვისების რუკა (თუ გასაღები კონფიგურირებულია)</li>
-    <li>SOS — მხოლოდ ტელეფონის აკრეფა (112 / დაზღვევა)</li>
+    <li>Fine / background location</li>
+    <li>Physical activity (GPS სიზუსტე გაჩერებისას; მოძრაობისას ენერგიის დაზოგვა)</li>
+    <li>Notifications · Internet</li>
   </ul>
-  <p>მონაცემებს არ ვყიდით.</p>
-  <p>წყარო: <a href="https://github.com/lukametr/parking_reminder">github.com/lukametr/parking_reminder</a></p>
+  <p>უარი „ყოველთვის“-ზე: ფონური შეხსენება არ იმუშავებს. მონაცემებს არ ვყიდით.</p>
+
+  <h2>English</h2>
+  <p>This app reminds Tbilisi drivers about paid zonal parking (billed per minute; we do not run a countdown). No login.</p>
+  <ul>
+    <li><strong>Precise location</strong>, including <strong>in the background</strong> while a visible foreground service runs, to detect nearby parking lots and remind you to start or stop payment in the official MSDA app. Location is processed on-device. We do not upload GPS tracks or sell location. Sessions stay on the phone.</li>
+    <li><strong>Ads (AdMob)</strong>: banner and interstitial; advertising ID per Google policy.</li>
+    <li><strong>Crash logs (Firebase Crashlytics)</strong> to fix bugs.</li>
+    <li><strong>Remote Config</strong> for UI/ad flags. <strong>Places</strong> queries if you open service maps. <strong>SOS</strong> only opens the dialer.</li>
+  </ul>
+  <p>This page is the privacy policy for Play Console (App content → Privacy policy).</p>
 </body>
 </html>

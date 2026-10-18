@@ -1,6 +1,6 @@
 # პარკინგის შეხსენება
 
-Android Flutter app for Tbilisi zonal parking lots (`com.findall.ParkingReminder`).
+Android Flutter app for Tbilisi zonal parking lots (`com.lukacode.sosapp`, Play: Parking Reminder +).
 
 Lots are loaded from Firebase Firestore collection `parkings`. Monitoring uses a native **foreground location service** (Play Fused Location, Activity Recognition, nearby geofences) — not a 10-second Dart GPS poll.
 

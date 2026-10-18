@@ -20,16 +20,16 @@ val mapsKey: String = (System.getenv("MAPS_API_KEY")
     ?: "").trim()
 
 android {
-    namespace = "com.findall.ParkingReminder"
+    namespace = "com.lukacode.sosapp"
     compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     defaultConfig {
-        applicationId = "com.findall.ParkingReminder"
+        applicationId = "com.lukacode.sosapp"
         minSdk = flutter.minSdkVersion
-        targetSdk = 35
-        versionCode = 6
-        versionName = "1.1.3"
+        targetSdk = 36
+        versionCode = 9
+        versionName = "1.1.4"
         multiDexEnabled = true
         manifestPlaceholders["MAPS_API_KEY"] = mapsKey
     }

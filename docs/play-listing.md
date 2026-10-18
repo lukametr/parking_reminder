@@ -1,46 +1,42 @@
-# Play Console paste pack (`com.findall.ParkingReminder`)
+# Play Console paste pack (`com.lukacode.sosapp` / Parking Reminder +)
 
-We cannot sign into LM’s Play account. Paste these.
+## App content → Privacy policy
 
-## Store listing (ka)
+Paste exactly:
 
-**App name:** პარკინგის შეხსენება
+https://parkingreminder-6466d.web.app/privacy/
 
-**Short description:** თბილისის ზონალური პარკინგი — ლოტი, ოფიციალური აპი, SOS.
+## Store listing
 
-**Full description:**
-თბილისის ფასიან ზონალურ პარკინგზე გაჩერებისას აპი გიჩვენებთ ლოტის ნომერს და გეკითხებათ, გსურთ თუ არა პარკირების ჩართვა. დიახ — იხსნება ოფიციალური აპი ge.msda.parking (MSDA); თუ არ გაქვთ, Play Store. ლოტიდან გასვლისას შეგახსენებთ, რომ **გამორთოთ** პარკირება იქვე. საფასური წუთებში ითვლება — აპი დროს არ ითვლის.
+**App name:** Parking Reminder +
 
-ფონური მონიტორინგი: Android foreground location (მუდმივი შეტყობინება). SOS: 112 და დაზღვევა. სერვისები: კვება, მაღაზია, აფთიაქი, საწვავი, ვულკანიზაცია.
+**Privacy policy URL:** https://parkingreminder-6466d.web.app/privacy/
 
-**Privacy policy URL:** https://parkingreminder-6466d.web.app/privacy/  
-(alt: https://parkingreminder-6466d.firebaseapp.com/privacy/ · jsDelivr backup: https://cdn.jsdelivr.net/gh/lukametr/parking_reminder@gh-pages/privacy/index.html)
+**Short description:** თბილისის ზონალური პარკირება — ლოტი, ოფიციალური აპი, SOS.
 
-## Data safety
+**Full description:** (same as before — per-minute, MSDA start/stop, SOS, no countdown)
+
+## Data safety (App content → Data safety)
 
 | Question | Answer |
 | --- | --- |
 | Collects user data? | Yes |
-| Precise location | Yes, on-device, required. **Background: yes** |
+| Precise location | Yes, **on-device**, required for core feature. **Collected in background: yes** |
 | Approximate location | No |
 | Account / name / email | No |
-| Crash logs | Firebase Crashlytics |
-| Device IDs | Advertising ID (AdMob banner) |
+| Crash logs | Yes — Firebase Crashlytics, app functionality |
+| Device or other IDs | Yes — Advertising ID (AdMob), advertising |
 | Encrypted in transit | Yes |
+| Users can request deletion | Location not uploaded; they can uninstall / revoke permission |
 | Sold | No |
-| Ads | AdMob banner; we do not sell location |
+| Ads | Yes (AdMob banner + interstitial). Location **not** used for ads by us |
 
-## Background location declaration
+## Background location declaration (App content → Sensitive permissions)
 
-**Video:** grant “Allow all the time” → minimize → stop on a lot → overlay/notification with lot number → confirm opens `ge.msda.parking` or Play Store → leave lot → “turn parking OFF” reminder. Ongoing notification “მონიტორინგი ჩართულია”.
+**Text:** This app detects when a Tbilisi driver has stopped on a paid zonal parking lot so they can start or stop payment in the official MSDA app (`ge.msda.parking`). That requires precise location while the app is not on screen (foreground service + always-allow). Location is processed on-device; no GPS track is uploaded. Users see an in-app Georgian disclosure (continue/decline) **before** the system permission. They can decline and still use SOS. Persistent notification while monitoring.
 
-**Text:** This app detects when a Tbilisi driver has stopped on a paid zonal lot so they can start or stop payment in the official MSDA parking app. That only works with location while the app is not on screen. Visible foreground service, Fused Location, Activity Recognition (high-accuracy when still), geofences around nearby lots. No live track is uploaded. User can stop monitoring by closing the app or revoking always-allow.
+**Video:** Open app → full-screen disclosure → Continue → Allow location → Allow all the time → minimize → stop on lot → reminder → leave lot → turn-off reminder. Show privacy icon opening the policy URL.
 
-## AdMob interstitial
+## Maps restriction (GCP)
 
-App ID: `ca-app-pub-8872582533953072~4948596381`  
-Interstitial unit: `ca-app-pub-8872582533953072/1616568991` (wired in `lib/config/ad_config.dart`; release does not use Google test ads).
-
-## Maps rotate (LM)
-
-Cloud Console → Credentials → rotate the key that was on GitHub. Restrict Android app `com.findall.ParkingReminder`, SHA-1 `AC:FF:5F:5F:3A:48:8A:47:FD:68:B0:C6:29:10:B6:43:B3:CF:8E:4C`. Maps SDK, Places API (New), Directions API. Then GitHub secret `MAPS_API_KEY`.
+Android app package **`com.lukacode.sosapp`** + upload SHA-1 `AC:FF:5F:5F:3A:48:8A:47:FD:68:B0:C6:29:10:B6:43:B3:CF:8E:4C`.

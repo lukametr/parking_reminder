@@ -1,7 +1,10 @@
 import 'package:flutter/foundation.dart';
 
 /// AdMob IDs. App ID uses `~`; ad units use `/`.
-/// Interstitial unit is public by design and is committed.
+/// Play package is `com.lukacode.sosapp`. These units were created under the
+/// listing that used `com.findall.ParkingReminder` — LM should add/link an
+/// AdMob Android app for `com.lukacode.sosapp` (or the Play store listing)
+/// so the same units stay valid.
 class AdConfig {
   static const String adMobAppId = 'ca-app-pub-8872582533953072~4948596381';
   static const String bannerAdUnitId = 'ca-app-pub-8872582533953072/4282381975';

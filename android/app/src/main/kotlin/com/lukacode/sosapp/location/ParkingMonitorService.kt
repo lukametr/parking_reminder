@@ -1,4 +1,4 @@
-package com.findall.ParkingReminder.location
+package com.lukacode.sosapp.location
 
 import android.Manifest
 import android.app.PendingIntent
@@ -273,12 +273,12 @@ class ParkingMonitorService : Service() {
     private fun prefs() = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     companion object {
-        const val ACTION_STOP = "com.findall.ParkingReminder.STOP"
-        const val ACTION_ACTIVITY = "com.findall.ParkingReminder.ACTIVITY"
-        const val ACTION_GEOFENCE_ENTER = "com.findall.ParkingReminder.GEOFENCE_ENTER"
-        const val ACTION_RELOAD_LOTS = "com.findall.ParkingReminder.RELOAD_LOTS"
-        const val ACTION_SET_SESSION = "com.findall.ParkingReminder.SET_SESSION"
-        const val ACTION_CLEAR_SESSION = "com.findall.ParkingReminder.CLEAR_SESSION"
+        const val ACTION_STOP = "com.lukacode.sosapp.STOP"
+        const val ACTION_ACTIVITY = "com.lukacode.sosapp.ACTIVITY"
+        const val ACTION_GEOFENCE_ENTER = "com.lukacode.sosapp.GEOFENCE_ENTER"
+        const val ACTION_RELOAD_LOTS = "com.lukacode.sosapp.RELOAD_LOTS"
+        const val ACTION_SET_SESSION = "com.lukacode.sosapp.SET_SESSION"
+        const val ACTION_CLEAR_SESSION = "com.lukacode.sosapp.CLEAR_SESSION"
         const val EXTRA_ACTIVITY = "activity"
         const val EXTRA_LOT = "lot"
         const val EXTRA_LAT = "lat"
