@@ -52,5 +52,7 @@ key.properties
 *.keystore
 keystore.jks
 
-# Local SDK / Maps key
+# Local SDK / Maps key — never commit
 android/local.properties
+.dart_defines.json
+.firebase/
