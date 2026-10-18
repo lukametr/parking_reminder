@@ -18,12 +18,12 @@ pluginManagement {
 
 plugins {
     id("dev.flutter.flutter-plugin-loader")
-    id("com.android.application") version "8.7.0" apply false
+    id("com.android.application") version "8.11.1" apply false
     // START: FlutterFire Configuration
     id("com.google.gms.google-services") version("4.4.2") apply false
     id("com.google.firebase.crashlytics") version("3.0.3") apply false
     // END: FlutterFire Configuration
-    id("org.jetbrains.kotlin.android") version "2.1.20" apply false
+    id("org.jetbrains.kotlin.android") version "2.2.20" apply false
 }
 
 rootProject.name = "parking_reminder"

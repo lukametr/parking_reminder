@@ -5,7 +5,7 @@ plugins {
     id("com.android.application")
     id("com.google.gms.google-services")
     id("com.google.firebase.crashlytics")
-    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.android") version "2.2.20"
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -24,7 +24,7 @@ val mapsKey: String = (System.getenv("MAPS_API_KEY")
 
 android {
     namespace = "com.findall.ParkingReminder"
-    compileSdk = 35
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     defaultConfig {
