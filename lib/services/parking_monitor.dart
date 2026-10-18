@@ -62,6 +62,24 @@ class ParkingMonitor {
     if (!Platform.isAndroid) return;
     await _methods.invokeMethod<void>('openLocationSettings');
   }
+
+  Future<void> setSession({
+    required String lotNumber,
+    required double latitude,
+    required double longitude,
+  }) async {
+    if (!Platform.isAndroid) return;
+    await _methods.invokeMethod<void>('setSession', <String, Object>{
+      'lot': lotNumber,
+      'lat': latitude,
+      'lng': longitude,
+    });
+  }
+
+  Future<void> clearSession() async {
+    if (!Platform.isAndroid) return;
+    await _methods.invokeMethod<void>('clearSession');
+  }
 }
 
 class MonitorEvent {

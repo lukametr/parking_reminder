@@ -74,6 +74,25 @@ object ParkingNotifier {
         nm.notify(ALERT_ID, n)
     }
 
+    fun showLeaveAlert(context: Context, title: String, body: String) {
+        ensureChannels(context)
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("leave_lot", true)
+        }
+        val pi = PendingIntent.getActivity(context, 2, intent, pendingFlags())
+        val n = NotificationCompat.Builder(context, CHANNEL_ALERTS)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setAutoCancel(true)
+            .setContentIntent(pi)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .build()
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(REMINDER_ID, n)
+    }
+
     private fun pendingFlags(): Int {
         var flags = PendingIntent.FLAG_UPDATE_CURRENT
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {

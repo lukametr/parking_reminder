@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'places_map_screen.dart';
 
 class AutoServiceMapScreen extends StatelessWidget {
-  const AutoServiceMapScreen({Key? key}) : super(key: key);
+  const AutoServiceMapScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

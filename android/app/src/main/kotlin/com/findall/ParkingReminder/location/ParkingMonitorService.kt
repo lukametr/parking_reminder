@@ -80,6 +80,22 @@ class ParkingMonitorService : Service() {
             ACTION_RELOAD_LOTS -> {
                 index = LotIndex(LotStore.load(this))
             }
+            ACTION_SET_SESSION -> {
+                prefs().edit()
+                    .putString(PREF_ACTIVE_LOT, intent.getStringExtra(EXTRA_LOT))
+                    .putString(PREF_PARK_LAT, intent.getDoubleExtra(EXTRA_LAT, 0.0).toString())
+                    .putString(PREF_PARK_LNG, intent.getDoubleExtra(EXTRA_LNG, 0.0).toString())
+                    .putBoolean(PREF_LEFT_NOTIFIED, false)
+                    .apply()
+            }
+            ACTION_CLEAR_SESSION -> {
+                prefs().edit()
+                    .remove(PREF_ACTIVE_LOT)
+                    .remove(PREF_PARK_LAT)
+                    .remove(PREF_PARK_LNG)
+                    .putBoolean(PREF_LEFT_NOTIFIED, false)
+                    .apply()
+            }
         }
         startAsForeground()
         return START_STICKY
@@ -156,6 +172,28 @@ class ParkingMonitorService : Service() {
                 .put("activity", activityName(lastActivity)),
         )
         maybeRefreshGeofences(lat, lng)
+        val activeLot = prefs().getString(PREF_ACTIVE_LOT, null)
+        if (activeLot != null) {
+            val parkLat = prefs().getString(PREF_PARK_LAT, null)?.toDoubleOrNull()
+            val parkLng = prefs().getString(PREF_PARK_LNG, null)?.toDoubleOrNull()
+            if (parkLat != null && parkLng != null) {
+                val dist = LotIndex.haversineMeters(lat, lng, parkLat, parkLng)
+                if (dist > EXIT_BUFFER_METERS && !prefs().getBoolean(PREF_LEFT_NOTIFIED, false)) {
+                    prefs().edit().putBoolean(PREF_LEFT_NOTIFIED, true).apply()
+                    ParkingNotifier.showLeaveAlert(
+                        this,
+                        "დატოვეთ პარკირების ლოტი",
+                        "$activeLot — გამორთეთ პარკირება ოფიციალურ აპში (MSDA / ge.msda.parking).",
+                    )
+                    prefs().edit()
+                        .remove(PREF_ACTIVE_LOT)
+                        .remove(PREF_PARK_LAT)
+                        .remove(PREF_PARK_LNG)
+                        .apply()
+                }
+            }
+            return
+        }
         if (lots.isNotEmpty() && still) {
             val now = System.currentTimeMillis()
             if (now - lastNotifyMs > 60_000) {
@@ -239,9 +277,19 @@ class ParkingMonitorService : Service() {
         const val ACTION_ACTIVITY = "com.findall.ParkingReminder.ACTIVITY"
         const val ACTION_GEOFENCE_ENTER = "com.findall.ParkingReminder.GEOFENCE_ENTER"
         const val ACTION_RELOAD_LOTS = "com.findall.ParkingReminder.RELOAD_LOTS"
+        const val ACTION_SET_SESSION = "com.findall.ParkingReminder.SET_SESSION"
+        const val ACTION_CLEAR_SESSION = "com.findall.ParkingReminder.CLEAR_SESSION"
         const val EXTRA_ACTIVITY = "activity"
+        const val EXTRA_LOT = "lot"
+        const val EXTRA_LAT = "lat"
+        const val EXTRA_LNG = "lng"
         const val PREFS = "parking_monitor"
         const val PREF_WANTED = "monitor_wanted"
+        const val PREF_ACTIVE_LOT = "active_lot"
+        const val PREF_PARK_LAT = "park_lat"
+        const val PREF_PARK_LNG = "park_lng"
+        const val PREF_LEFT_NOTIFIED = "left_notified"
+        const val EXIT_BUFFER_METERS = 80.0
 
         fun start(context: Context, extras: Intent? = null) {
             val i = (extras ?: Intent()).setClass(context, ParkingMonitorService::class.java)

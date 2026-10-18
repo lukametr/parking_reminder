@@ -47,7 +47,7 @@ class OverlayNotification {
             child: GestureDetector(
               onTap: () {},
               child: Container(
-                color: Colors.black.withOpacity(0.4),
+                color: Colors.black.withValues(alpha: 0.4),
               ),
             ),
           ),
@@ -79,7 +79,7 @@ class OverlayNotification {
                         Container(
                           width: 320,
                           decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.3),
+                            color: Colors.black.withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(16),
                           ),
                         ),
@@ -91,7 +91,7 @@ class OverlayNotification {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 if (icon != null) ...[
-                                  icon!,
+                                  icon,
                                   const SizedBox(height: 12),
                                 ],
                                 Text(title,

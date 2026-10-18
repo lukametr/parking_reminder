@@ -43,6 +43,7 @@ class NotificationService {
   static Future<void> showSimpleNotification({
     required String title,
     required String message,
+    String? payload,
   }) async {
     final notificationId = _getNextNotificationId();
     const androidDetails = AndroidNotificationDetails(
@@ -63,7 +64,37 @@ class NotificationService {
       title,
       message,
       details,
-      payload: 'tap',
+      payload: payload ?? 'tap',
+    );
+  }
+
+  /// Leave-lot: remind to turn parking OFF in the official MSDA app.
+  static Future<void> showLeaveLotNotification({required String lotNumber}) async {
+    final int notificationId = _getNextNotificationId();
+    final androidDetails = AndroidNotificationDetails(
+      'parking_channel',
+      'Parking Notifications',
+      channelDescription: 'Notifications for parking zones',
+      importance: Importance.high,
+      priority: Priority.high,
+      actions: const [
+        AndroidNotificationAction(
+          'open_official_app',
+          'გამორთვა ოფიციალურ აპში',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+      ],
+    );
+    await _flnp.show(
+      notificationId,
+      'დატოვეთ პარკირების ლოტი',
+      '$lotNumber — გამორთეთ პარკირება ოფიციალურ აპში (MSDA / ge.msda.parking).',
+      NotificationDetails(android: androidDetails),
+      payload: json.encode({
+        'action': 'open_official_app',
+        'lotNumber': lotNumber,
+      }),
     );
   }
 
@@ -181,6 +212,7 @@ class NotificationService {
     // 15 წუთი = 15 * 60 * 1000 მილიწამი
     final blockUntil = now + (15 * 60 * 1000);
     await prefs.setInt('notifications_blocked_until', blockUntil);
+    // ignore: avoid_print
     print('Notifications blocked until: ${DateTime.fromMillisecondsSinceEpoch(blockUntil)}');
     await cancelAll();
   }

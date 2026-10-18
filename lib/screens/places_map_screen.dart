@@ -12,12 +12,12 @@ class PlacesMapScreen extends StatefulWidget {
   final IconData icon;
 
   const PlacesMapScreen({
-    Key? key,
+    super.key,
     required this.title,
     required this.placeType,
     required this.keyword,
     required this.icon,
-  }) : super(key: key);
+  });
 
   @override
   State<PlacesMapScreen> createState() => _PlacesMapScreenState();
@@ -53,7 +53,7 @@ class _PlacesMapScreenState extends State<PlacesMapScreen> {
       }
 
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
       );
 
       setState(() {

@@ -18,7 +18,6 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen> {
   Position? _currentPosition;
   bool _isLoading = true;
   Set<Polyline> _polylines = {};
-  Marker? _selectedMarker;
   String? _errorMessage;
 
   @override
@@ -30,7 +29,7 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen> {
   Future<void> _getCurrentLocation() async {
     try {
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
       );
       print('Current location: ${position.latitude}, ${position.longitude}');
       setState(() {
@@ -63,7 +62,7 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen> {
         Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
-          'X-Goog-Api-Key': '${MapsConfig.apiKey}',
+          'X-Goog-Api-Key': MapsConfig.apiKey,
           'X-Goog-FieldMask': 'places.displayName,places.location,places.formattedAddress',
         },
         body: json.encode({
@@ -114,20 +113,7 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen> {
               ),
               onTap: () {
                 print('Marker tapped: $name');
-                setState(() {
-                  _selectedMarker = Marker(
-                    markerId: MarkerId(placeId),
-                    position: LatLng(lat, lng),
-                    infoWindow: InfoWindow(
-                      title: name,
-                      snippet: address,
-                      onTap: () {
-                        print('Info window tapped: $name');
-                        _showRouteOptions(LatLng(lat, lng), name);
-                      },
-                    ),
-                  );
-                });
+                _showRouteOptions(LatLng(lat, lng), name);
               },
             );
           }).toSet();

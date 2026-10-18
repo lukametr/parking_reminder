@@ -52,7 +52,8 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver {
   static const _minimizeChannel = MethodChannel('com.findall.ParkingReminder/minimize');
   final ParkingService _parkingService = ParkingService();
-  final ParkingSessionTracker _session = ParkingSessionTracker();
+  late final ParkingSessionTracker _session;
+  String? _activeLotLabel;
   bool _isLoading = true;
   StreamSubscription<MonitorEvent>? _monitorSub;
   BannerAd? _banner;
@@ -79,6 +80,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _session = ParkingSessionTracker(onLeftLot: _onLeftActiveLot);
     _initializeApp();
   }
 
@@ -86,6 +88,10 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
     setState(() => _isLoading = true);
     try {
       await NotificationService.initialize(onActionCallback: _onNotificationAction);
+      await _session.restore();
+      if (mounted && _session.activeLot != null) {
+        setState(() => _activeLotLabel = _session.activeLot);
+      }
       _loadBanner();
       if (!await _ensureLocationPermission()) return;
       await _parkingService.getAllParkings();
@@ -117,12 +123,29 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
       latitude: event.latitude,
       longitude: event.longitude,
     ));
+    if (_session.hasActiveSession) return;
     if (event.type == 'lots' &&
         event.lots.isNotEmpty &&
         (event.activity == 'still' || event.speed < 1.2) &&
         mounted) {
       _showParkingNotification(event.lots.join(' ან '));
     }
+  }
+
+  void _onLeftActiveLot(String lot) {
+    if (!mounted) return;
+    setState(() => _activeLotLabel = null);
+    OverlayNotification.show(
+      context: context,
+      title: 'დატოვეთ ლოტი № $lot',
+      message:
+          'გამორთეთ პარკირება ოფიციალურ აპში (MSDA / ge.msda.parking).',
+      icon: const Icon(Icons.exit_to_app, color: Colors.white, size: 28),
+      confirmLabel: 'გახსენით პარკირების აპი',
+      onConfirm: () => unawaited(_openParkingAppOrStore()),
+      onCancel: () {},
+      persistent: true,
+    );
   }
 
   Future<bool> _ensureLocationPermission() async {
@@ -190,7 +213,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
   }
 
   void _showParkingNotification(String lotsText) async {
-    if (OverlayNotification.isVisible) return;
+    if (OverlayNotification.isVisible || _session.hasActiveSession) return;
     final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now().millisecondsSinceEpoch;
     
@@ -244,6 +267,8 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
           persistent: true,
         );
       }
+    } else if (action == 'open_official_app' || action == 'exit') {
+      await _openParkingAppOrStore();
     } else if (action == 'cancel') {
       // ვაუქმებთ შეტყობინებას
       await NotificationService.cancelNotification(1);
@@ -310,7 +335,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
           ),
           // გამჭვირვალე შავი ფენა ტექსტისთვის
           Container(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             width: double.infinity,
             height: double.infinity,
           ),
@@ -388,6 +413,43 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
                     ),
                   ],
                 ),
+                if (_activeLotLabel != null) ...[
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 28),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            'აქტიური ლოტი № $_activeLotLabel',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'პარკირება წუთებში ითვლება. ლოტიდან გასვლისას გამორთეთ ოფიციალურ აპში.',
+                            style: TextStyle(color: Colors.white70, fontSize: 13),
+                            textAlign: TextAlign.center,
+                          ),
+                          TextButton(
+                            onPressed: () => unawaited(_openParkingAppOrStore()),
+                            child: const Text('გახსენით პარკირების აპი'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 30),
                 // SOS ღილაკი
                 if (!_showButtons && !_showSOSButtons)
@@ -399,7 +461,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
+                          color: Colors.black.withValues(alpha: 0.3),
                           spreadRadius: 2,
                           blurRadius: 5,
                           offset: const Offset(0, 2),
@@ -441,7 +503,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.5),
+                    color: Colors.black.withValues(alpha: 0.5),
                     shape: BoxShape.circle,
                   ),
                   child: Material(
@@ -464,7 +526,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.5),
+                    color: Colors.black.withValues(alpha: 0.5),
                     shape: BoxShape.circle,
                   ),
                   child: Material(
@@ -507,7 +569,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
                 borderRadius: BorderRadius.circular(25),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
+                    color: Colors.black.withValues(alpha: 0.3),
                     spreadRadius: 2,
                     blurRadius: 5,
                     offset: const Offset(0, 2),
@@ -542,7 +604,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
           if (_showSOSButtons)
             Positioned.fill(
               child: Container(
-                color: Colors.black.withOpacity(0.7),
+                color: Colors.black.withValues(alpha: 0.7),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -568,7 +630,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
                               borderRadius: BorderRadius.circular(15),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.3),
+                                  color: Colors.black.withValues(alpha: 0.3),
                                   spreadRadius: 2,
                                   blurRadius: 5,
                                   offset: const Offset(0, 2),
@@ -647,7 +709,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
           if (_showButtons)
             Positioned.fill(
               child: Container(
-                color: Colors.black.withOpacity(0.7),
+                color: Colors.black.withValues(alpha: 0.7),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -678,7 +740,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
                               borderRadius: BorderRadius.circular(15),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.3),
+                                  color: Colors.black.withValues(alpha: 0.3),
                                   spreadRadius: 2,
                                   blurRadius: 5,
                                   offset: const Offset(0, 2),
@@ -834,12 +896,13 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
         latitude: position.latitude,
         longitude: position.longitude,
       );
-      
+      if (mounted) setState(() => _activeLotLabel = mainLot);
+
       // Try to open parking app
       await _openParkingAppOrStore();
       
     } catch (e) {
-      print('Error starting parking: $e');
+      debugPrint('Error starting parking: $e');
     }
   }
 
@@ -863,7 +926,7 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
         exit(0);
       }
     } catch (e) {
-      print('Error terminating app: $e');
+      debugPrint('Error terminating app: $e');
       // თუ რაიმე შეცდომა მოხდა, მაინც დავხუროთ აპლიკაცია
       exit(1);
     }

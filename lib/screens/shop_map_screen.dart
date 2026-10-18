@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'places_map_screen.dart';
 
 class ShopMapScreen extends StatelessWidget {
-  const ShopMapScreen({Key? key}) : super(key: key);
+  const ShopMapScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

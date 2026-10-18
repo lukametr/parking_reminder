@@ -71,6 +71,28 @@ class MainActivity : FlutterActivity() {
                         )
                         result.success(null)
                     }
+                    "setSession" -> {
+                        val args = call.arguments as? Map<*, *>
+                        val lot = args?.get("lot") as? String
+                        val lat = (args?.get("lat") as? Number)?.toDouble() ?: 0.0
+                        val lng = (args?.get("lng") as? Number)?.toDouble() ?: 0.0
+                        ParkingMonitorService.start(
+                            this,
+                            Intent()
+                                .setAction(ParkingMonitorService.ACTION_SET_SESSION)
+                                .putExtra(ParkingMonitorService.EXTRA_LOT, lot)
+                                .putExtra(ParkingMonitorService.EXTRA_LAT, lat)
+                                .putExtra(ParkingMonitorService.EXTRA_LNG, lng),
+                        )
+                        result.success(null)
+                    }
+                    "clearSession" -> {
+                        ParkingMonitorService.start(
+                            this,
+                            Intent().setAction(ParkingMonitorService.ACTION_CLEAR_SESSION),
+                        )
+                        result.success(null)
+                    }
                     else -> result.notImplemented()
                 }
             }
