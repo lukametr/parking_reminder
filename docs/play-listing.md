@@ -36,9 +36,10 @@ We cannot sign into LM’s Play account. Paste these.
 
 **Text:** This app detects when a Tbilisi driver has stopped on a paid zonal lot so they can start or stop payment in the official MSDA parking app. That only works with location while the app is not on screen. Visible foreground service, Fused Location, Activity Recognition (high-accuracy when still), geofences around nearby lots. No live track is uploaded. User can stop monitoring by closing the app or revoking always-allow.
 
-## AdMob interstitial (LM)
+## AdMob interstitial
 
-https://admob.google.com → app `ca-app-pub-8872582533953072~4948596381` → Add interstitial → put ID in `lib/config/ad_config.dart` replacing `/0000000000`.
+App ID: `ca-app-pub-8872582533953072~4948596381`  
+Interstitial unit: `ca-app-pub-8872582533953072/1616568991` (wired in `lib/config/ad_config.dart`; release does not use Google test ads).
 
 ## Maps rotate (LM)
 

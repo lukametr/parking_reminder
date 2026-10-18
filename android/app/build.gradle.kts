@@ -28,8 +28,8 @@ android {
         applicationId = "com.findall.ParkingReminder"
         minSdk = flutter.minSdkVersion
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.1.2"
+        versionCode = 6
+        versionName = "1.1.3"
         multiDexEnabled = true
         manifestPlaceholders["MAPS_API_KEY"] = mapsKey
     }
