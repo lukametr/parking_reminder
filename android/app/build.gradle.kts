@@ -1,27 +1,37 @@
-// build.gradle.kts (Module: android/app)
-
 import java.util.Properties
 import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
     id("com.google.gms.google-services")
-    id("org.jetbrains.kotlin.android")
+    id("com.google.firebase.crashlytics")
+    id("org.jetbrains.kotlin.android") version "2.2.20"
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val localProps = Properties()
+val localFile = rootProject.file("local.properties")
+if (localFile.exists()) {
+    localFile.inputStream().use { localProps.load(it) }
+}
+// Env or android/local.properties only — never commit a key.
+val mapsKey: String = (System.getenv("MAPS_API_KEY")
+    ?: localProps.getProperty("MAPS_API_KEY", "")
+    ?: "").trim()
+
 android {
-    namespace = "com.findall.ParkingReminder"
-    compileSdk = 35
+    namespace = "com.lukacode.sosapp"
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     defaultConfig {
-        applicationId = "com.findall.ParkingReminder"
-        minSdk = 23
-        targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        applicationId = "com.lukacode.sosapp"
+        minSdk = flutter.minSdkVersion
+        targetSdk = 36
+        versionCode = 13
+        versionName = "1.1.8"
         multiDexEnabled = true
+        manifestPlaceholders["MAPS_API_KEY"] = mapsKey
     }
 
     compileOptions {
@@ -40,18 +50,16 @@ android {
         }
     }
 
-    // Загрузка ключей подписи из key.properties
     val props = Properties()
     val propFile = rootProject.file("key.properties")
     if (propFile.exists()) {
         props.load(FileInputStream(propFile))
         signingConfigs {
             create("release") {
-                // Читаем именно те ключи, которые должны быть в key.properties
-                keyAlias     = props.getProperty("keyAlias")
-                keyPassword  = props.getProperty("keyPassword")
-                storeFile    = file(props.getProperty("storeFile")!!)
-                storePassword= props.getProperty("storePassword")
+                keyAlias = props.getProperty("keyAlias")
+                keyPassword = props.getProperty("keyPassword")
+                storeFile = file(props.getProperty("storeFile")!!)
+                storePassword = props.getProperty("storePassword")
             }
         }
     }
@@ -61,15 +69,12 @@ android {
             isMinifyEnabled = false
             isShrinkResources = false
             signingConfig = signingConfigs.findByName("release")
+                ?: signingConfigs.getByName("debug")
         }
         getByName("debug") {
             isMinifyEnabled = false
             isShrinkResources = false
         }
-    }
-
-    lint {
-        baseline = file("lint-baseline.xml")
     }
 }
 
@@ -79,6 +84,8 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib")
     implementation("androidx.multidex:multidex:2.0.1")
+    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("com.google.android.gms:play-services-location:21.3.0")
 }

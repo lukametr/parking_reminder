@@ -1,151 +1,105 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
-import 'package:flutter/services.dart';
+
+import '../models/parking_lot.dart';
+import '../utils/lot_index.dart';
+import 'parking_monitor.dart';
 
 class ParkingService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final Distance _distance = const Distance();
-  
-  // ქეშის დამატება პარკინგების მონაცემების მიღების მიზნით
-  List<Map<String, dynamic>>? _parkingsCache;
+  ParkingService({FirebaseFirestore? firestore})
+      : _firestore = firestore ?? FirebaseFirestore.instance;
+
+  final FirebaseFirestore _firestore;
+  LotIndex? _index;
   DateTime? _lastCacheUpdate;
 
-  // მონაცემების მიღება პარკინგების სიისთვის (ქეშის გამოყენებით)
-  Future<List<Map<String, dynamic>>> getAllParkings() async {
-    // თუ გვაქვს ქეში და ის არ არის 15 წუთზე ძველი, გამოვიყენებთ მას
-    if (_parkingsCache != null && _lastCacheUpdate != null) {
-      final cacheAge = DateTime.now().difference(_lastCacheUpdate!);
-      if (cacheAge.inMinutes < 15) {
-        return _parkingsCache!;
-      }
+  Future<List<ParkingLot>> getAllParkings({bool force = false}) async {
+    if (!force &&
+        _index != null &&
+        _lastCacheUpdate != null &&
+        DateTime.now().difference(_lastCacheUpdate!).inMinutes < 15) {
+      return _index!.lots;
     }
-    
     try {
-      final snapshot = await _firestore.collection('parkings').get();
-      _parkingsCache = snapshot.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id;
-        return data;
-      }).toList();
-      
+      final QuerySnapshot<Map<String, dynamic>> snapshot =
+          await _firestore.collection('parkings').get();
+      final List<ParkingLot> lots = snapshot.docs.map((doc) {
+        final Map<String, dynamic> data = doc.data();
+        final Object? location = data['location'];
+        double lat = 0;
+        double lng = 0;
+        if (location is GeoPoint) {
+          lat = location.latitude;
+          lng = location.longitude;
+        }
+        return ParkingLot(
+          id: doc.id,
+          lotNumber: '${data['lotNumber']}',
+          latitude: lat,
+          longitude: lng,
+        );
+      }).where((ParkingLot e) => e.latitude != 0 || e.longitude != 0).toList();
+      _index = LotIndex(lots);
       _lastCacheUpdate = DateTime.now();
-      return _parkingsCache!;
-    } catch (e) {
-      print("შეცდომა პარკირების ზონის მიღებისას: $e");
-      // ქეშის გამოყენება თუ გაქვს
-      return _parkingsCache ?? [];
+      await ParkingMonitor.instance.syncLots(lots);
+      return lots;
+    } catch (_) {
+      return _index?.lots ?? <ParkingLot>[];
     }
   }
 
-  // პარკინგამდე დისტანციის შემოწმება
-  Future<List<String>> checkProximity(Position userLocation, {double proximityRadius = 15}) async {
-    List<Map<String, dynamic>> nearbyLotsWithDist = [];
-    try {
-      final parkings = await getAllParkings();
-      print('CHECK_PROXIMITY: userLocation: lat=${userLocation.latitude}, lng=${userLocation.longitude}');
-      for (var parking in parkings) {
-        final location = parking['location'];
-        if (location == null || location is! GeoPoint) {
-          continue;
-        }
-        final geoPoint = location as GeoPoint;
-        final lotNumber = parking['lotNumber'].toString();
-        final userLatLng = LatLng(userLocation.latitude, userLocation.longitude);
-        final parkLatLng = LatLng(geoPoint.latitude, geoPoint.longitude);
-        final distMeters = _distance(userLatLng, parkLatLng);
-        if (distMeters <= 30) {
-          print('CHECK_PROXIMITY: lot=$lotNumber, parkLat=${geoPoint.latitude}, parkLng=${geoPoint.longitude}, dist=$distMeters');
-        }
-        if (distMeters <= proximityRadius) {
-          nearbyLotsWithDist.add({'lotNumber': lotNumber, 'dist': distMeters});
-        }
-      }
-      // ჯერ დავალაგოთ დისტანციის მიხედვით
-      nearbyLotsWithDist.sort((a, b) => (a['dist'] as double).compareTo(b['dist'] as double));
-      // დავაბრუნოთ მხოლოდ lotNumber-ების სია, ყველაზე ახლოს მყოფი პირველია
-      final result = nearbyLotsWithDist.map((e) => e['lotNumber'] as String).toList();
-      print('CHECK_PROXIMITY: nearbyLots(sorted): $result');
-      return result;
-    } catch (e) {
-      print("დისტანციის შემოწმების შეცდომა: $e");
-      return [];
-    }
+  Future<List<String>> checkProximity(
+    Position userLocation, {
+    double proximityRadius = 8,
+  }) async {
+    await getAllParkings();
+    final LotIndex? index = _index;
+    if (index == null) return <String>[];
+    final ParkingLot? lot = index.nearestWithin(
+      userLocation.latitude,
+      userLocation.longitude,
+      radiusMeters: proximityRadius,
+    );
+    if (lot == null) return <String>[];
+    return <String>[lot.lotNumber];
   }
-  
-  // პარკინგის ინფორმაციის შენახვა
+
+  /// Local session only — do not write `user_parkings` while rules are open.
   Future<bool> saveUserParking({
     required String lotNumber,
     required double latitude,
     required double longitude,
     required DateTime startTime,
   }) async {
-    try {
-      // პარკინგის ინფორმაციის შენახვა ლოკალურ მონაცემთა ბაზაში
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('currentParkingLot', lotNumber);
-      await prefs.setDouble('currentParkingLat', latitude);
-      await prefs.setDouble('currentParkingLng', longitude);
-      await prefs.setInt('currentParkingStart', startTime.millisecondsSinceEpoch);
-      
-      // პარკინგის ინფორმაციის შენახვა Firebase-ში
-      await _firestore.collection('user_parkings').add({
-        'lotNumber': lotNumber,
-        'location': GeoPoint(latitude, longitude),
-        'startTime': Timestamp.fromDate(startTime),
-        'userId': await _getUserId(),
-      });
-      
-      return true;
-    } catch (e) {
-      print("შეცდომა პარკირების ზონის შენახვისას: $e");
-      return false;
-    }
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('currentParkingLot', lotNumber);
+    await prefs.setDouble('currentParkingLat', latitude);
+    await prefs.setDouble('currentParkingLng', longitude);
+    await prefs.setInt('currentParkingStart', startTime.millisecondsSinceEpoch);
+    return true;
   }
-  
-  // მომხმარებლის ID-ის მიღება
-  Future<String> _getUserId() async {
-    final prefs = await SharedPreferences.getInstance();
-    String? userId = prefs.getString('userId');
-    
-    return userId ?? 'default_user_id';
-  }
-  
-  // მიმდინარე მოქმედი პარკინგის მიღება
+
   Future<Map<String, dynamic>?> getCurrentParking() async {
-    final prefs = await SharedPreferences.getInstance();
-    final lotNumber = prefs.getString('currentParkingLot');
-    
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? lotNumber = prefs.getString('currentParkingLot');
     if (lotNumber == null) return null;
-    
-    return {
+    return <String, dynamic>{
       'lotNumber': lotNumber,
       'latitude': prefs.getDouble('currentParkingLat'),
       'longitude': prefs.getDouble('currentParkingLng'),
       'startTime': DateTime.fromMillisecondsSinceEpoch(
-        prefs.getInt('currentParkingStart') ?? 0
+        prefs.getInt('currentParkingStart') ?? 0,
       ),
     };
   }
-  
-  // პარკინგის დასრულება
-  Future<bool> endParking() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('currentParkingLot');
-      await prefs.remove('currentParkingLat');
-      await prefs.remove('currentParkingLng');
-      await prefs.remove('currentParkingStart');
-      
-      return true;
-    } catch (e) {
-      print("შეცდომა პარკირების დასრულებისას: $e");
-      return false;
-    }
-  }
 
-  // foreground და background რეჟიმში ბლოკირების ლოგიკა
+  Future<bool> endParking() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove('currentParkingLot');
+    await prefs.remove('currentParkingLat');
+    await prefs.remove('currentParkingLng');
+    await prefs.remove('currentParkingStart');
+    return true;
+  }
 }

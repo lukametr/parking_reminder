@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'places_map_screen.dart';
 
 class PoliceMapScreen extends StatelessWidget {
-  const PoliceMapScreen({Key? key}) : super(key: key);
+  const PoliceMapScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

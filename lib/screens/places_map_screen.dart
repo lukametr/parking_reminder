@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:parking_reminder/config/maps_config.dart';
 
 class PlacesMapScreen extends StatefulWidget {
   final String title;
@@ -11,12 +12,12 @@ class PlacesMapScreen extends StatefulWidget {
   final IconData icon;
 
   const PlacesMapScreen({
-    Key? key,
+    super.key,
     required this.title,
     required this.placeType,
     required this.keyword,
     required this.icon,
-  }) : super(key: key);
+  });
 
   @override
   State<PlacesMapScreen> createState() => _PlacesMapScreenState();
@@ -52,7 +53,7 @@ class _PlacesMapScreenState extends State<PlacesMapScreen> {
       }
 
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
       );
 
       setState(() {
@@ -85,7 +86,7 @@ class _PlacesMapScreenState extends State<PlacesMapScreen> {
         Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
-          'X-Goog-Api-Key': 'AIzaSyDm_j_wiq5Y45WT8X-JvJ007PiQ7Emk0Pw',
+          'X-Goog-Api-Key': MapsConfig.apiKey,
           'X-Goog-FieldMask': 'places.displayName,places.location,places.formattedAddress',
         },
         body: json.encode({
@@ -213,7 +214,7 @@ class _PlacesMapScreenState extends State<PlacesMapScreen> {
           '?origin=${_currentPosition!.latitude},${_currentPosition!.longitude}'
           '&destination=${destination.latitude},${destination.longitude}'
           '&mode=$mode'
-          '&key=AIzaSyDm_j_wiq5Y45WT8X-JvJ007PiQ7Emk0Pw';
+          '&key=${MapsConfig.apiKey}';
 
       final response = await http.get(Uri.parse(url));
       final data = json.decode(response.body);

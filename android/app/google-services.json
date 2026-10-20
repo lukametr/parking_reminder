@@ -9,7 +9,45 @@
       "client_info": {
         "mobilesdk_app_id": "1:155641305476:android:5b32133a354a0141fa65d1",
         "android_client_info": {
+          "package_name": "com.example.parking_reminder"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4Xsw5IoKo5QS0bbgkIklPWAnMuf_4Eqw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:155641305476:android:77675ba9cf353f2dfa65d1",
+        "android_client_info": {
           "package_name": "com.findall.ParkingReminder"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4Xsw5IoKo5QS0bbgkIklPWAnMuf_4Eqw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:155641305476:android:672e7e458d56fb2efa65d1",
+        "android_client_info": {
+          "package_name": "com.lukacode.sosapp"
         }
       },
       "oauth_client": [],

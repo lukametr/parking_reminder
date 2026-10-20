@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'places_map_screen.dart';
 
 class VulcanizationMapScreen extends StatelessWidget {
-  const VulcanizationMapScreen({Key? key}) : super(key: key);
+  const VulcanizationMapScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

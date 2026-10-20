@@ -43,3 +43,16 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/app/build/
+**/android/**/build/
+
+# Signing — never commit
+key.properties
+*.jks
+*.keystore
+keystore.jks
+
+# Local SDK / Maps key — never commit
+android/local.properties
+.dart_defines.json
+.firebase/
