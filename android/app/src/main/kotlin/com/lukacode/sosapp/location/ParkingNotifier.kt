@@ -72,7 +72,6 @@ object ParkingNotifier {
     }
 
     fun showStayPrompt(context: Context, title: String, body: String, extraLots: String? = null) {
-        if (ParkingMonitorService.appInForeground) return
         notifyFullScreen(
             context,
             ALERT_ID,
@@ -88,6 +87,7 @@ object ParkingNotifier {
                 putExtra("show_prompt", true)
             },
             requestCode = 11,
+            useFullScreen = !ParkingMonitorService.appInForeground,
         )
     }
 
@@ -120,24 +120,26 @@ object ParkingNotifier {
         body: String,
         intent: Intent,
         requestCode: Int,
+        useFullScreen: Boolean = true,
     ) {
         ensureChannels(context)
         val pi = PendingIntent.getActivity(context, requestCode, intent, pendingFlags())
-        val n = NotificationCompat.Builder(context, CHANNEL_ALERTS)
+        val builder = NotificationCompat.Builder(context, CHANNEL_ALERTS)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setSmallIcon(R.drawable.ic_notification)
             .setAutoCancel(true)
             .setContentIntent(pi)
-            .setFullScreenIntent(pi, true)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .build()
+        if (useFullScreen) {
+            builder.setFullScreenIntent(pi, true)
+        }
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        nm.notify(id, n)
+        nm.notify(id, builder.build())
     }
 
     private fun pendingFlags(): Int {

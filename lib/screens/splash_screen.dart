@@ -61,6 +61,8 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
   String? _promptLots;
   double _promptLat = 0;
   double _promptLng = 0;
+  DateTime? _lotStillSince;
+  String? _lotStillKey;
   BannerAd? _banner;
   InterstitialAd? _interstitial;
   bool _bannerReady = false;
@@ -104,6 +106,9 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
       _loadInterstitial();
       if (!await _ensureLocationPermission()) return;
       await _parkingService.getAllParkings();
+      if (_session.activeLot == null) {
+        await ParkingMonitor.instance.clearSession();
+      }
       await ParkingMonitor.instance.start();
       _monitorSub ??= ParkingMonitor.instance.events.listen(_onMonitorEvent);
       await _consumePendingPrompt();
@@ -166,7 +171,27 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
       longitude: event.longitude,
     ));
     if (_session.hasActiveSession) return;
+    if (event.lots.isEmpty || event.speed >= 2.8) {
+      _lotStillSince = null;
+      _lotStillKey = null;
+    } else {
+      final String key = event.lots.join('|');
+      if (key != _lotStillKey) {
+        _lotStillKey = key;
+        _lotStillSince = DateTime.now();
+      }
+    }
     if (event.type == 'prompt' && event.lots.isNotEmpty && mounted) {
+      _promptLat = event.latitude;
+      _promptLng = event.longitude;
+      _showParkingNotification(event.lots.join(' ან '));
+      return;
+    }
+    final DateTime? stillSince = _lotStillSince;
+    if (mounted &&
+        event.lots.isNotEmpty &&
+        stillSince != null &&
+        DateTime.now().difference(stillSince) >= const Duration(seconds: 5)) {
       _promptLat = event.latitude;
       _promptLng = event.longitude;
       _showParkingNotification(event.lots.join(' ან '));
@@ -352,13 +377,8 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed ||
-        state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused ||
-        state == AppLifecycleState.hidden) {
-      unawaited(ParkingMonitor.instance.start());
-    }
     if (state == AppLifecycleState.resumed) {
+      unawaited(ParkingMonitor.instance.start());
       unawaited(_consumePendingPrompt());
     }
   }
@@ -616,11 +636,14 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
                     child: InkWell(
                       onTap: _minimizeApp,
                       borderRadius: BorderRadius.circular(20),
-                      child: const Center(
-                        child: Icon(
-                          Icons.minimize,
-                          color: Colors.white,
-                          size: 20,
+                      child: const Tooltip(
+                        message: 'ჩაკეცვა',
+                        child: Center(
+                          child: Icon(
+                            Icons.minimize,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                         ),
                       ),
                     ),
@@ -639,11 +662,14 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
                     child: InkWell(
                       onTap: _terminateApp,
                       borderRadius: BorderRadius.circular(20),
-                      child: const Center(
-                        child: Icon(
-                          Icons.close,
-                          color: Colors.white,
-                          size: 20,
+                      child: const Tooltip(
+                        message: 'გათიშვა',
+                        child: Center(
+                          child: Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                         ),
                       ),
                     ),
@@ -1014,27 +1040,13 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
 
   Future<void> _terminateApp() async {
     try {
-      // გავაჩეროთ ყველა სერვისი და შეტყობინება
-      await ParkingMonitor.instance.stop();
-      await NotificationService.cancelAll();
-      
-      // წავშალოთ პარკირების მონაცემები
       await _parkingService.endParking();
-      
-      // დავრწმუნდეთ რომ ყველა სერვისი გაჩერებულია
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      if (Platform.isAndroid) {
-        // Android-ზე გამოვიყენოთ SystemNavigator
-        await SystemNavigator.pop(animated: true);
-      } else {
-        // iOS-ზე გამოვიყენოთ exit
-        exit(0);
-      }
+      await ParkingMonitor.instance.clearSession();
+      await NotificationService.cancelAll();
+      await ParkingMonitor.instance.shutdownAndExit();
     } catch (e) {
       debugPrint('Error terminating app: $e');
-      // თუ რაიმე შეცდომა მოხდა, მაინც დავხუროთ აპლიკაცია
-      exit(1);
+      exit(0);
     }
   }
 

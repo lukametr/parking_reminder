@@ -6,7 +6,7 @@ import 'lot_index.dart';
 class StationaryDetector {
   StationaryDetector({
     this.maxAccuracyMeters = 48,
-    this.maxSpeedMps = 1.15,
+    this.maxSpeedMps = 2.8,
     this.moveThresholdM = 22,
     this.settle = const Duration(seconds: 5),
   });

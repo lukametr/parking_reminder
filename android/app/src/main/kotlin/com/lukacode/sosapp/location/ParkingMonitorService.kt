@@ -1,6 +1,7 @@
 package com.lukacode.sosapp.location
 
 import android.Manifest
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
@@ -8,7 +9,10 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
+import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ServiceCompat
 import com.google.android.gms.location.ActivityRecognition
@@ -45,15 +49,18 @@ class ParkingMonitorService : Service() {
     private var lastSpeed = 0.0
     private var lastLots: List<String> = emptyList()
     private val promptPolicy by lazy { LotPromptPolicy(prefs()) }
+    private val handler = Handler(Looper.getMainLooper())
+    private val dwellRunnable = Runnable { fireStayPromptIfReady("timer") }
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             val loc = result.lastLocation ?: return
+            val speed = if (loc.hasSpeed() && loc.speed >= 0f) loc.speed.toDouble() else 0.0
             onFix(
                 loc.latitude,
                 loc.longitude,
                 loc.accuracy.toDouble(),
-                loc.speed.toDouble(),
+                speed,
             )
         }
     }
@@ -64,6 +71,7 @@ class ParkingMonitorService : Service() {
         super.onCreate()
         ParkingNotifier.ensureChannels(this)
         index = LotIndex(LotStore.load(this))
+        Log.i(TAG, "onCreate lots=${index.size} fine=${hasFine()}")
         startAsForeground()
         startActivityUpdates()
         applyLocationMode(DetectedActivity.UNKNOWN)
@@ -74,18 +82,21 @@ class ParkingMonitorService : Service() {
         when (intent?.action) {
             ACTION_STOP -> {
                 prefs().edit().putBoolean(PREF_WANTED, false).apply()
+                teardownAndStopForeground()
                 stopSelf()
                 return START_NOT_STICKY
             }
             ACTION_ACTIVITY -> {
                 lastActivity = intent.getIntExtra(EXTRA_ACTIVITY, lastActivity)
-                applyLocationMode(lastActivity)
+                Log.i(TAG, "activity=${activityName(lastActivity)}")
+                // Do not restart GPS here — remove+request dropped fixes in the field.
             }
             ACTION_GEOFENCE_ENTER -> {
-                applyLocationMode(DetectedActivity.STILL)
+                lastActivity = DetectedActivity.STILL
             }
             ACTION_RELOAD_LOTS -> {
                 index = LotIndex(LotStore.load(this))
+                Log.i(TAG, "reload lots n=${index.size}")
             }
             ACTION_SET_SESSION -> {
                 prefs().edit()
@@ -121,7 +132,16 @@ class ParkingMonitorService : Service() {
     }
 
     override fun onDestroy() {
-        fused.removeLocationUpdates(locationCallback)
+        teardownAndStopForeground()
+        super.onDestroy()
+    }
+
+    private fun teardownAndStopForeground() {
+        handler.removeCallbacks(dwellRunnable)
+        try {
+            fused.removeLocationUpdates(locationCallback)
+        } catch (_: Exception) {
+        }
         try {
             geofences.removeGeofences(geofencePendingIntent())
         } catch (_: Exception) {
@@ -130,7 +150,15 @@ class ParkingMonitorService : Service() {
             activityClient.removeActivityUpdates(activityPendingIntent())
         } catch (_: Exception) {
         }
-        super.onDestroy()
+        try {
+            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        } catch (_: Exception) {
+        }
+        try {
+            (getSystemService(NOTIFICATION_SERVICE) as NotificationManager)
+                .cancel(ParkingNotifier.MONITOR_ID)
+        } catch (_: Exception) {
+        }
     }
 
     private fun startAsForeground() {
@@ -151,31 +179,24 @@ class ParkingMonitorService : Service() {
     }
 
     private fun applyLocationMode(activity: Int) {
-        if (!hasFine()) return
-        val request = when (activity) {
-            DetectedActivity.STILL -> LocationRequest.Builder(
-                Priority.PRIORITY_HIGH_ACCURACY,
-                8_000L,
-            ).setMinUpdateDistanceMeters(3f)
-                .setMinUpdateIntervalMillis(5_000L)
-                .setGranularity(Granularity.GRANULARITY_FINE)
-                .build()
-            DetectedActivity.IN_VEHICLE, DetectedActivity.ON_BICYCLE ->
-                LocationRequest.Builder(
-                    Priority.PRIORITY_BALANCED_POWER_ACCURACY,
-                    60_000L,
-                ).setMinUpdateDistanceMeters(80f)
-                    .setMinUpdateIntervalMillis(30_000L)
-                    .build()
-            else -> LocationRequest.Builder(
-                Priority.PRIORITY_BALANCED_POWER_ACCURACY,
-                25_000L,
-            ).setMinUpdateDistanceMeters(25f)
-                .setMinUpdateIntervalMillis(15_000L)
-                .build()
+        if (!hasFine()) {
+            Log.w(TAG, "no ACCESS_FINE_LOCATION — cannot request GPS")
+            return
         }
+        // Always high-accuracy while FGS runs. Coarse IN_VEHICLE intervals
+        // (60s / 80m) missed real parking stops in field tests.
+        val interval = if (activity == DetectedActivity.STILL) 3_000L else 4_000L
+        val request = LocationRequest.Builder(
+            Priority.PRIORITY_HIGH_ACCURACY,
+            interval,
+        ).setMinUpdateIntervalMillis(2_000L)
+            .setMinUpdateDistanceMeters(0f)
+            .setWaitForAccurateLocation(false)
+            .setGranularity(Granularity.GRANULARITY_FINE)
+            .build()
         fused.removeLocationUpdates(locationCallback)
         fused.requestLocationUpdates(request, locationCallback, mainLooper)
+        Log.i(TAG, "gps mode activity=${activityName(activity)} intervalMs=$interval")
     }
 
     private fun onFix(lat: Double, lng: Double, accuracy: Double, speed: Double) {
@@ -183,11 +204,15 @@ class ParkingMonitorService : Service() {
         lastLng = lng
         lastSpeed = speed
         val still = isStationary(speed)
-        val radius = if (still) 15.0 else 25.0
-        val nearby = index.nearby(lat, lng, radius)
+        val nearby = index.nearby(lat, lng, NEAR_RADIUS_M)
         val lots = nearby.map { it.lotNumber }
         lastLots = lots
         promptPolicy.noteFix(lots, lat, lng)
+        Log.i(
+            TAG,
+            "fix still=$still speed=${"%.2f".format(speed)} acc=${"%.0f".format(accuracy)} " +
+                "lots=${lots.size}/${index.size} act=${activityName(lastActivity)} $lots",
+        )
         MonitorBridge.emit(
             JSONObject()
                 .put("type", if (lots.isNotEmpty()) "lots" else "fix")
@@ -226,19 +251,18 @@ class ParkingMonitorService : Service() {
         maybePromptStay(lots, lat, lng, still)
     }
 
-    private fun isStationary(speed: Double): Boolean {
-        if (speed >= 1.2) return false
-        return when (lastActivity) {
-            DetectedActivity.IN_VEHICLE, DetectedActivity.ON_BICYCLE -> false
-            else -> true
-        }
-    }
+    /**
+     * Speed-only stop gate. AR often stays IN_VEHICLE after the car is parked,
+     * which previously blocked every stay prompt.
+     */
+    private fun isStationary(speed: Double): Boolean = speed < STOP_SPEED_MPS
 
     private fun maybePromptStay(lots: List<String>, lat: Double, lng: Double, still: Boolean) {
         if (!still || lots.isEmpty()) {
+            handler.removeCallbacks(dwellRunnable)
             dwellLotsKey = null
             dwellSinceMs = 0L
-            lastPromptedKey = null
+            if (!still) lastPromptedKey = null
             return
         }
         val key = lots.sorted().joinToString("|")
@@ -246,19 +270,37 @@ class ParkingMonitorService : Service() {
         if (key != dwellLotsKey) {
             dwellLotsKey = key
             dwellSinceMs = now
+            handler.removeCallbacks(dwellRunnable)
+            handler.postDelayed(dwellRunnable, LotPromptPolicy.DWELL_MS)
+            Log.i(TAG, "dwell start ${LotPromptPolicy.DWELL_MS}ms lots=$lots")
         }
+        fireStayPromptIfReady("fix")
+    }
+
+    private fun fireStayPromptIfReady(reason: String) {
+        val lots = lastLots
+        if (lots.isEmpty() || lastSpeed >= STOP_SPEED_MPS) return
+        val key = dwellLotsKey ?: lots.sorted().joinToString("|")
         if (key == lastPromptedKey) return
-        if (now - dwellSinceMs < LotPromptPolicy.DWELL_MS) return
-        if (!promptPolicy.canPrompt(lots, lat, lng)) return
+        val elapsed = System.currentTimeMillis() - dwellSinceMs
+        if (dwellSinceMs == 0L || elapsed < LotPromptPolicy.DWELL_MS) {
+            Log.i(TAG, "dwell wait ${elapsed}ms reason=$reason")
+            return
+        }
+        if (!promptPolicy.canPrompt(lots, lastLat, lastLng)) {
+            Log.i(TAG, "prompt suppressed cooldown/same-lot lots=$lots")
+            return
+        }
         lastPromptedKey = key
         val joined = lots.joinToString(" ან ")
         prefs().edit().putString(LotPromptPolicy.PREF_PENDING_LOTS, joined).apply()
+        Log.i(TAG, "PROMPT $reason lots=$joined")
         MonitorBridge.emit(
             JSONObject()
                 .put("type", "prompt")
                 .put("lots", org.json.JSONArray(lots))
-                .put("lat", lat)
-                .put("lng", lng)
+                .put("lat", lastLat)
+                .put("lng", lastLng)
                 .put("accuracy", 0)
                 .put("speed", lastSpeed)
                 .put("activity", activityName(lastActivity)),
@@ -281,7 +323,7 @@ class ParkingMonitorService : Service() {
         val fences = nearest.map { lot ->
             Geofence.Builder()
                 .setRequestId(lot.id.take(64))
-                .setCircularRegion(lot.lat, lot.lng, 25f)
+                .setCircularRegion(lot.lat, lot.lng, 40f)
                 .setExpirationDuration(Geofence.NEVER_EXPIRE)
                 .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER)
                 .build()
@@ -350,6 +392,9 @@ class ParkingMonitorService : Service() {
         const val EXTRA_LNG = "lng"
         @Volatile
         var appInForeground = false
+        private const val TAG = "ParkingMon"
+        const val STOP_SPEED_MPS = 2.8
+        const val NEAR_RADIUS_M = 40.0
         const val PREFS = "parking_monitor"
         const val PREF_WANTED = "monitor_wanted"
         const val PREF_ACTIVE_LOT = "active_lot"
@@ -368,8 +413,41 @@ class ParkingMonitorService : Service() {
         }
 
         fun stop(context: Context) {
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean(PREF_WANTED, false)
+                .apply()
             val i = Intent(context, ParkingMonitorService::class.java).setAction(ACTION_STOP)
-            context.startService(i)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(i)
+                } else {
+                    context.startService(i)
+                }
+            } catch (_: Exception) {
+            }
+            try {
+                context.stopService(Intent(context, ParkingMonitorService::class.java))
+            } catch (_: Exception) {
+            }
+        }
+
+        fun shutdown(context: Context) {
+            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .putBoolean(PREF_WANTED, false)
+                .remove(PREF_ACTIVE_LOT)
+                .remove(PREF_PARK_LAT)
+                .remove(PREF_PARK_LNG)
+                .putBoolean(PREF_LEFT_NOTIFIED, false)
+                .apply()
+            stop(context)
+            try {
+                val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                nm.cancel(ParkingNotifier.MONITOR_ID)
+                nm.cancel(ParkingNotifier.ALERT_ID)
+                nm.cancel(ParkingNotifier.REMINDER_ID)
+            } catch (_: Exception) {
+            }
         }
 
         fun decline(context: Context, lots: String, lat: Double, lng: Double) {

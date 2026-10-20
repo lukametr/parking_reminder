@@ -6,7 +6,9 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Process
 import android.provider.Settings
+import kotlin.system.exitProcess
 import androidx.core.content.ContextCompat
 import com.lukacode.sosapp.location.LotPromptPolicy
 import com.lukacode.sosapp.location.LotStore
@@ -81,6 +83,13 @@ class MainActivity : FlutterActivity() {
                     "stop" -> {
                         ParkingMonitorService.stop(this)
                         result.success(null)
+                    }
+                    "shutdownAndExit" -> {
+                        ParkingMonitorService.shutdown(this)
+                        result.success(null)
+                        finishAndRemoveTask()
+                        Process.killProcess(Process.myPid())
+                        exitProcess(0)
                     }
                     "hasAlwaysLocation" -> result.success(hasAlwaysLocation())
                     "openLocationSettings" -> {

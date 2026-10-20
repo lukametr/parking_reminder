@@ -17,6 +17,7 @@ class LotIndex(
     private val cellDegrees: Double = 0.00045,
 ) {
     private val cells = HashMap<String, MutableList<ParkingLotPoint>>()
+    val size: Int = lots.size
 
     init {
         for (lot in lots) {
@@ -27,9 +28,11 @@ class LotIndex(
     fun nearby(lat: Double, lng: Double, radiusMeters: Double): List<ParkingLotPoint> {
         val i0 = kotlin.math.floor(lat / cellDegrees).toInt()
         val j0 = kotlin.math.floor(lng / cellDegrees).toInt()
+        val cellMeters = cellDegrees * 111_000.0
+        val ring = kotlin.math.max(1, kotlin.math.ceil(radiusMeters / cellMeters).toInt() + 1)
         val out = ArrayList<ParkingLotPoint>()
-        for (di in -1..1) {
-            for (dj in -1..1) {
+        for (di in -ring..ring) {
+            for (dj in -ring..ring) {
                 val cell = cells["${i0 + di}:${j0 + dj}"] ?: continue
                 for (lot in cell) {
                     if (haversineMeters(lat, lng, lot.lat, lot.lng) <= radiusMeters) {

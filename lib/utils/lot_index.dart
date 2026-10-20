@@ -22,12 +22,14 @@ class LotIndex {
     return '$i:$j';
   }
 
-  List<ParkingLot> nearby(double lat, double lng, {double radiusMeters = 15}) {
+  List<ParkingLot> nearby(double lat, double lng, {double radiusMeters = 40}) {
     final List<ParkingLot> out = <ParkingLot>[];
     final int i0 = (lat / cellDegrees).floor();
     final int j0 = (lng / cellDegrees).floor();
-    for (int di = -1; di <= 1; di++) {
-      for (int dj = -1; dj <= 1; dj++) {
+    final double cellMeters = cellDegrees * 111000;
+    final int ring = math.max(1, (radiusMeters / cellMeters).ceil() + 1);
+    for (int di = -ring; di <= ring; di++) {
+      for (int dj = -ring; dj <= ring; dj++) {
         final List<ParkingLot>? cell = _cells['${i0 + di}:${j0 + dj}'];
         if (cell == null) continue;
         for (final ParkingLot lot in cell) {

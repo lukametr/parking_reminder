@@ -53,6 +53,17 @@ class ParkingMonitor {
     await _methods.invokeMethod<void>('stop');
   }
 
+  /// Stop FGS, drop the ongoing notification, and kill the process.
+  Future<void> shutdownAndExit() async {
+    if (!Platform.isAndroid) {
+      exit(0);
+    }
+    try {
+      await _methods.invokeMethod<void>('shutdownAndExit');
+    } catch (_) {}
+    exit(0);
+  }
+
   Future<bool> hasAlwaysLocation() async {
     if (!Platform.isAndroid) return false;
     return await _methods.invokeMethod<bool>('hasAlwaysLocation') ?? false;
