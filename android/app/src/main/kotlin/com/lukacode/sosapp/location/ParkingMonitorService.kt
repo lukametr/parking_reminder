@@ -204,14 +204,20 @@ class ParkingMonitorService : Service() {
         lastLng = lng
         lastSpeed = speed
         val still = isStationary(speed)
-        val nearby = index.nearby(lat, lng, NEAR_RADIUS_M)
-        val lots = nearby.map { it.lotNumber }
+        // Tight GPS match: single nearest lot only, and only if within ~8 m.
+        val match = index.nearby(lat, lng, MATCH_RADIUS_M).firstOrNull()
+        val lots = if (match != null) listOf(match.lotNumber) else emptyList()
         lastLots = lots
         promptPolicy.noteFix(lots, lat, lng)
+        val nearestHint = index.nearest(lat, lng, limit = 1, maxMeters = 80.0).firstOrNull()
+        val nearestM = nearestHint?.let {
+            LotIndex.haversineMeters(lat, lng, it.lat, it.lng)
+        }
         Log.i(
             TAG,
             "fix still=$still speed=${"%.2f".format(speed)} acc=${"%.0f".format(accuracy)} " +
-                "lots=${lots.size}/${index.size} act=${activityName(lastActivity)} $lots",
+                "match=${lots} nearest=${nearestHint?.lotNumber}@${nearestM?.let { "%.1f".format(it) }}m " +
+                "r=${MATCH_RADIUS_M} index=${index.size} act=${activityName(lastActivity)}",
         )
         MonitorBridge.emit(
             JSONObject()
@@ -323,7 +329,7 @@ class ParkingMonitorService : Service() {
         val fences = nearest.map { lot ->
             Geofence.Builder()
                 .setRequestId(lot.id.take(64))
-                .setCircularRegion(lot.lat, lot.lng, 40f)
+                .setCircularRegion(lot.lat, lot.lng, 25f)
                 .setExpirationDuration(Geofence.NEVER_EXPIRE)
                 .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER)
                 .build()
@@ -394,7 +400,8 @@ class ParkingMonitorService : Service() {
         var appInForeground = false
         private const val TAG = "ParkingMon"
         const val STOP_SPEED_MPS = 2.8
-        const val NEAR_RADIUS_M = 40.0
+        /** Stay-prompt match: nearest lot only, and only inside this radius. */
+        const val MATCH_RADIUS_M = 8.0
         const val PREFS = "parking_monitor"
         const val PREF_WANTED = "monitor_wanted"
         const val PREF_ACTIVE_LOT = "active_lot"

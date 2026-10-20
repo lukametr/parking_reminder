@@ -22,7 +22,7 @@ class LotIndex {
     return '$i:$j';
   }
 
-  List<ParkingLot> nearby(double lat, double lng, {double radiusMeters = 40}) {
+  List<ParkingLot> nearby(double lat, double lng, {double radiusMeters = 8}) {
     final List<ParkingLot> out = <ParkingLot>[];
     final int i0 = (lat / cellDegrees).floor();
     final int j0 = (lng / cellDegrees).floor();
@@ -46,6 +46,12 @@ class LotIndex {
       ),
     );
     return out;
+  }
+
+  /// Single closest lot if it is inside [radiusMeters]; otherwise null.
+  ParkingLot? nearestWithin(double lat, double lng, {double radiusMeters = 8}) {
+    final List<ParkingLot> hits = nearby(lat, lng, radiusMeters: radiusMeters);
+    return hits.isEmpty ? null : hits.first;
   }
 
   static double haversineMeters(

@@ -51,19 +51,18 @@ class ParkingService {
 
   Future<List<String>> checkProximity(
     Position userLocation, {
-    double proximityRadius = 15,
+    double proximityRadius = 8,
   }) async {
     await getAllParkings();
     final LotIndex? index = _index;
     if (index == null) return <String>[];
-    return index
-        .nearby(
-          userLocation.latitude,
-          userLocation.longitude,
-          radiusMeters: proximityRadius,
-        )
-        .map((ParkingLot e) => e.lotNumber)
-        .toList();
+    final ParkingLot? lot = index.nearestWithin(
+      userLocation.latitude,
+      userLocation.longitude,
+      radiusMeters: proximityRadius,
+    );
+    if (lot == null) return <String>[];
+    return <String>[lot.lotNumber];
   }
 
   /// Local session only — do not write `user_parkings` while rules are open.

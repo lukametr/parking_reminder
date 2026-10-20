@@ -24,4 +24,23 @@ void main() {
   test('haversine is ~0 for identical points', () {
     expect(LotIndex.haversineMeters(41.7, 44.8, 41.7, 44.8), 0);
   });
+
+  test('nearestWithin is only the closest lot inside 8 m', () {
+    const ParkingLot a = ParkingLot(
+      id: '1',
+      lotNumber: 'NEAR',
+      latitude: 41.71510,
+      longitude: 44.78330,
+    );
+    const ParkingLot b = ParkingLot(
+      id: '2',
+      lotNumber: 'FARTHER',
+      latitude: 41.71518,
+      longitude: 44.78330,
+    );
+    final LotIndex index = LotIndex(<ParkingLot>[a, b]);
+    final ParkingLot? hit = index.nearestWithin(41.71510, 44.78330);
+    expect(hit?.lotNumber, 'NEAR');
+    expect(index.nearestWithin(41.71600, 44.78330), isNull);
+  });
 }
