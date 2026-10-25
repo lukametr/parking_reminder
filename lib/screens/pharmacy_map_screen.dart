@@ -4,6 +4,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:parking_reminder/config/maps_config.dart';
+import 'package:parking_reminder/utils/location_disclosure_gate.dart';
 
 class PharmacyMapScreen extends StatefulWidget {
   const PharmacyMapScreen({super.key});
@@ -28,6 +29,14 @@ class _PharmacyMapScreenState extends State<PharmacyMapScreen> {
 
   Future<void> _getCurrentLocation() async {
     try {
+      if (!mounted) return;
+      if (!await ensureLocationDisclosureAccepted(context)) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'ლოკაციის გამოყენებაზე თანხმობა საჭიროა';
+        });
+        return;
+      }
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
       );

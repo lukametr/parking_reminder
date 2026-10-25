@@ -4,6 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:parking_reminder/config/maps_config.dart';
+import 'package:parking_reminder/utils/location_disclosure_gate.dart';
 
 class PlacesMapScreen extends StatefulWidget {
   final String title;
@@ -40,6 +41,14 @@ class _PlacesMapScreenState extends State<PlacesMapScreen> {
 
   Future<void> _getCurrentLocation() async {
     try {
+      if (!mounted) return;
+      if (!await ensureLocationDisclosureAccepted(context)) {
+        setState(() {
+          _errorMessage = 'ლოკაციის გამოყენებაზე თანხმობა საჭიროა';
+          _isLoading = false;
+        });
+        return;
+      }
       final permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         final requestPermission = await Geolocator.requestPermission();

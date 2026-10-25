@@ -13,26 +13,44 @@
 </head>
 <body>
   <h1>პრივატულობის პოლიტიკა / Privacy Policy</h1>
-  <p>Last updated: 18 October 2026</p>
+  <p>Last updated: 25 October 2026</p>
   <p><strong>Parking Reminder +</strong> (პარკინგის შეხსენება)<br/>
      Developer listing · Android package <code>com.lukacode.sosapp</code></p>
   <p>Contact: <a href="https://github.com/lukametr/parking_reminder">github.com/lukametr/parking_reminder</a></p>
 
   <h2>ქართულად</h2>
-  <p>აპი თბილისის <strong>ფასიან ზონალურ პარკინგზე</strong> შეხსენებას აკეთებს. ანგარიში არ გვჭირდება.</p>
-  <h2>რა მონაცემს ვაგროვებთ</h2>
+  <p>აპი თბილისის <strong>ფასიან ზონალურ პარკინგზე</strong> შეხსენებას აკეთებს (წუთებში ბილინგი; დროს არ ვითვლით). ანგარიში არ გვჭირდება.</p>
+
+  <h2>რა მონაცემს ვიღებთ / ვაგროვებთ (WHAT)</h2>
   <ul>
-    <li><strong>ზუსტი ლოკაცია (GPS)</strong>, მათ შორის <strong>ფონში</strong> და გადატვირთვის შემდეგ, თუ ჩართულია მონიტორინგი. კოორდინატი მუშავდება <strong>ტელეფონზე</strong> foreground სერვისში (მუდმივი შეტყობინება). ვადარებთ Firestore კოლექციას <code>parkings</code> (~15 მ). გაჩერებაზე გეკითხებით ოფიციალურ აპში (<code>ge.msda.parking</code>) პარკირების ჩართვას; გასვლაზე — გამორთვას. GPS ტრეკს სერვერზე არ ვტვირთავთ. სესია ლოკალურია. ლოკაციას რეკლამის პროფილისთვის არ ვიყენებთ და არ ვყიდით.</li>
-    <li><strong>რეკლამა (Google AdMob)</strong> — ბანერი და interstitial. Google-მა შეიძლება გამოიყენოს სარეკლამო ID / მოწყობილობის სიგნალები თავისი პოლიტიკით. პერსონალიზაციის opt-out — ტელეფონის პარამეტრებში.</li>
-    <li><strong>კრეშის ლოგები (Firebase Crashlytics)</strong> — მოდელი, OS, stack trace, რომ გავასწოროთ შეცდომები.</li>
+    <li><strong>ზუსტი ლოკაცია (GPS / precise location)</strong>, მათ შორის <strong>ფონში</strong> — როცა აპი ჩაკეცილია, ეკრანი გამორთულია ან აპი არ არის გახსნილი („ყოველთვის“ / Allow all the time), თუ ჩართულია მონიტორინგი.</li>
+  </ul>
+
+  <h2>რატომ (WHY)</h2>
+  <ul>
+    <li>რომ ამოვიცნოთ გაჩერება ფასიან ლოტთან (≈5–8 მ), გაჩვენოთ ლოტის ნომერი და შეგახსენოთ ოფიციალურ აპში (<code>ge.msda.parking</code> / MSDA) პარკირების ჩართვა ან გამორთვა.</li>
+  </ul>
+
+  <h2>როგორ ვიყენებთ (HOW)</h2>
+  <ul>
+    <li>კოორდინატი მუშავდება <strong>ტელეფონზე (on-device)</strong> foreground სერვისში (მუდმივი შეტყობინება „პარკინგის მონიტორინგი ჩართულია“). ვადარებთ Firestore კოლექციას <code>parkings</code>.</li>
+    <li>GPS ტრეკს სერვერზე <strong>არ ვტვირთავთ</strong>. სესია ლოკალურია.</li>
+    <li>ლოკაციას <strong>არ ვყიდით</strong> და <strong>რეკლამის პროფილირებისთვის / პერსონალიზებული რეკლამისთვის არ ვიყენებთ</strong>.</li>
+  </ul>
+  <p>აპში სრულეკრანიანი Prominent Disclosure (გაგრძელება / უარყოფა) ჩანს <strong>სანამ</strong> სისტემის ლოკაციის ნებართვას ვითხოვთ.</p>
+
+  <h2>სხვა მონაცემები</h2>
+  <ul>
+    <li><strong>რეკლამა (Google AdMob)</strong> — ბანერი და interstitial. Google-მა შეიძლება გამოიყენოს სარეკლამო ID. ლოკაციას რეკლამისთვის ჩვენ არ ვაწვდით.</li>
+    <li><strong>კრეშის ლოგები (Firebase Crashlytics)</strong> — მოდელი, OS, stack trace.</li>
     <li><strong>Firebase Remote Config</strong> — ფონის სურათის URL / რეკლამის დროშები.</li>
-    <li><strong>Maps / Places</strong> — თუ გახსნით სერვისების რუკას, Google Places იღებს მოთხოვნის მდებარეობას ახლომდებარე ობიექტებისთვის.</li>
+    <li><strong>Maps / Places</strong> — თუ გახსნით სერვისების რუკას, Google Places იღებს მოთხოვნის მდებარეობას ახლომდებარე ობიექტებისთვის (მხოლოდ თანხმობისა და ნებართვის შემდეგ).</li>
     <li><strong>SOS</strong> — 112 / დაზღვევა ხსნის აკრეფას. ზარს ჩვენ არ ვაკეთებთ და ნომერს არ ვინახავთ.</li>
   </ul>
   <h2>ნებართვები</h2>
   <ul>
     <li>Fine / background location</li>
-    <li>Physical activity (GPS სიზუსტე გაჩერებისას; მოძრაობისას ენერგიის დაზოგვა)</li>
+    <li>Physical activity</li>
     <li>Notifications · Internet</li>
   </ul>
   <p>უარი „ყოველთვის“-ზე: ფონური შეხსენება არ იმუშავებს. მონაცემებს არ ვყიდით.</p>
@@ -40,10 +58,11 @@
   <h2>English</h2>
   <p>This app reminds Tbilisi drivers about paid zonal parking (billed per minute; we do not run a countdown). No login.</p>
   <ul>
-    <li><strong>Precise location</strong>, including <strong>in the background</strong> while a visible foreground service runs, to detect nearby parking lots and remind you to start or stop payment in the official MSDA app. Location is processed on-device. We do not upload GPS tracks or sell location. Sessions stay on the phone.</li>
-    <li><strong>Ads (AdMob)</strong>: banner and interstitial; advertising ID per Google policy.</li>
-    <li><strong>Crash logs (Firebase Crashlytics)</strong> to fix bugs.</li>
-    <li><strong>Remote Config</strong> for UI/ad flags. <strong>Places</strong> queries if you open service maps. <strong>SOS</strong> only opens the dialer.</li>
+    <li><strong>WHAT:</strong> Precise GPS location, including in the background when the app is closed or not on screen (“Allow all the time”), while monitoring is on.</li>
+    <li><strong>WHY:</strong> Detect stops near paid lots (~5–8 m), show the lot number, and remind you to start/stop payment in the official MSDA app (<code>ge.msda.parking</code>).</li>
+    <li><strong>HOW:</strong> Processed on-device in a foreground service with a persistent notification. We do not upload GPS tracks, do not sell location, and do not use location for ads profiling. A full-screen in-app Prominent Disclosure (Continue / Decline) appears before any system location permission.</li>
+    <li><strong>Ads (AdMob)</strong>: banner and interstitial; advertising ID per Google policy. We do not feed location to ads.</li>
+    <li><strong>Crash logs (Firebase Crashlytics)</strong> to fix bugs. <strong>Remote Config</strong> for UI/ad flags. <strong>Places</strong> only after disclosure + permission. <strong>SOS</strong> only opens the dialer.</li>
   </ul>
   <p>This page is the privacy policy for Play Console (App content → Privacy policy).</p>
 </body>

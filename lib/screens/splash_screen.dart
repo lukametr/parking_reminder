@@ -14,7 +14,6 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:parking_reminder/config/ad_config.dart';
 import 'package:parking_reminder/config/privacy.dart';
 import 'package:parking_reminder/notifications/overlay_notification.dart';
-import 'package:parking_reminder/screens/location_disclosure_screen.dart';
 import 'package:parking_reminder/screens/auto_service_map_screen.dart';
 import 'package:parking_reminder/screens/food_map_screen.dart';
 import 'package:parking_reminder/screens/gas_station_map_screen.dart';
@@ -26,6 +25,7 @@ import 'package:parking_reminder/services/notification_service.dart';
 import 'package:parking_reminder/services/parking_monitor.dart';
 import 'package:parking_reminder/services/parking_service.dart';
 import 'package:parking_reminder/services/parking_session_tracker.dart';
+import 'package:parking_reminder/utils/location_disclosure_gate.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -61,8 +61,6 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
   String? _promptLots;
   double _promptLat = 0;
   double _promptLng = 0;
-  DateTime? _lotStillSince;
-  String? _lotStillKey;
   BannerAd? _banner;
   InterstitialAd? _interstitial;
   bool _bannerReady = false;
@@ -171,27 +169,9 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
       longitude: event.longitude,
     ));
     if (_session.hasActiveSession) return;
-    if (event.lots.isEmpty || event.speed >= 2.8) {
-      _lotStillSince = null;
-      _lotStillKey = null;
-    } else {
-      final String key = event.lots.join('|');
-      if (key != _lotStillKey) {
-        _lotStillKey = key;
-        _lotStillSince = DateTime.now();
-      }
-    }
+    // Stay prompts come only from native FGS (`type == prompt`) so decline
+    // cooldown + same-lot silence cannot be bypassed by raw `lots` fixes.
     if (event.type == 'prompt' && event.lots.isNotEmpty && mounted) {
-      _promptLat = event.latitude;
-      _promptLng = event.longitude;
-      _showParkingNotification(event.lots.join(' ან '));
-      return;
-    }
-    final DateTime? stillSince = _lotStillSince;
-    if (mounted &&
-        event.lots.isNotEmpty &&
-        stillSince != null &&
-        DateTime.now().difference(stillSince) >= const Duration(seconds: 5)) {
       _promptLat = event.latitude;
       _promptLng = event.longitude;
       _showParkingNotification(event.lots.join(' ან '));
@@ -224,17 +204,18 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
   }
 
   Future<bool> _ensureLocationPermission() async {
+    // Full-screen Prominent Disclosure (WHAT/WHY/HOW + ვეთანხმები / უარყოფა)
+    // MUST run before any system location permission dialog.
     if (!await _ensureLocationDisclosure()) return false;
     final LocationPermission existing = await Geolocator.checkPermission();
     if (existing == LocationPermission.deniedForever) {
-      await _showAlwaysLocationDialog(deniedForever: true);
+      await ParkingMonitor.instance.openLocationSettings();
       return false;
     }
     if (existing == LocationPermission.denied) {
       final LocationPermission asked = await Geolocator.requestPermission();
       if (asked == LocationPermission.denied ||
           asked == LocationPermission.deniedForever) {
-        await _showAlwaysLocationDialog(deniedForever: true);
         return false;
       }
     }
@@ -242,31 +223,21 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
       if (!await Geolocator.isLocationServiceEnabled()) {
         await Geolocator.openLocationSettings();
       }
-      await Permission.notification.request();
-      await Permission.activityRecognition.request();
+      // Always/background — system dialog only; disclosure already covered usage.
       final bool always = await ParkingMonitor.instance.hasAlwaysLocation();
       if (!always) {
-        final bool proceed = await _showAlwaysLocationDialog();
-        if (proceed) {
-          await Permission.locationAlways.request();
-        }
+        await Permission.locationAlways.request();
       }
+      // Notifications are separate from location disclosure (Play requirement).
+      await Permission.notification.request();
+      await Permission.activityRecognition.request();
     }
     return true;
   }
 
   Future<bool> _ensureLocationDisclosure() async {
     if (!mounted) return false;
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(PrivacyConfig.disclosureAcceptedKey) == true) {
-      return true;
-    }
-    if (!mounted) return false;
-    final bool accepted = await LocationDisclosureScreen.present(context);
-    if (accepted) {
-      await prefs.setBool(PrivacyConfig.disclosureAcceptedKey, true);
-    }
-    return accepted;
+    return ensureLocationDisclosureAccepted(context);
   }
 
   Future<void> _openPrivacyPolicy() async {
@@ -274,39 +245,6 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
       Uri.parse(PrivacyConfig.policyUrl),
       mode: LaunchMode.externalApplication,
     );
-  }
-
-  Future<bool> _showAlwaysLocationDialog({bool deniedForever = false}) async {
-    if (!mounted) return false;
-    final bool? ok = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        title: const Text('ყოველთვის ნებართვა'),
-        content: Text(
-          deniedForever
-              ? 'ფონური შეხსენება საჭიროებს ლოკაციას „ყოველთვის“. გახსენით პარამეტრები და ჩართეთ.'
-              : 'აპი ამოწმებს, ხართ თუ არა თბილისის ფასიან ლოტთან, როცა ჩაკეცილია. ამისთვის აირჩიეთ „ყოველთვის დაშვება“ (Allow all the time). მხოლოდ „აპის გამოყენებისას“ ფონური მონიტორინგი გაჩერდება.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('ახლა არა'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(deniedForever ? 'პარამეტრები' : 'გაგრძელება'),
-          ),
-        ],
-      ),
-    );
-    if (ok == true) {
-      if (deniedForever) {
-        await ParkingMonitor.instance.openLocationSettings();
-      }
-      return true;
-    }
-    return false;
   }
 
   void _showParkingNotification(String lotsText) async {

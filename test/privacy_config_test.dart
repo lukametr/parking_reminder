@@ -8,4 +8,11 @@ void main() {
       'https://parkingreminder-6466d.web.app/privacy/',
     );
   });
+
+  test('disclosure key is versioned for Play re-review', () {
+    expect(
+      PrivacyConfig.disclosureAcceptedKey,
+      'location_disclosure_accepted_v2',
+    );
+  });
 }
