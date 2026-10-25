@@ -28,8 +28,8 @@ android {
         applicationId = "com.lukacode.sosapp"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
-        versionCode = 14
-        versionName = "1.1.9"
+        versionCode = 15
+        versionName = "1.1.10"
         multiDexEnabled = true
         manifestPlaceholders["MAPS_API_KEY"] = mapsKey
     }
@@ -66,8 +66,13 @@ android {
 
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // R8 on → Play deobfuscation/mapping.txt for Closed testing upload.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             signingConfig = signingConfigs.findByName("release")
                 ?: signingConfigs.getByName("debug")
         }
