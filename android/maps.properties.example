@@ -1,0 +1,4 @@
+# Copy these into android/local.properties (gitignored).
+# The previous Maps/Places key was committed on GitHub — rotate it in Google Cloud
+# (restrict to this Android package + SHA-1) before Play upload.
+MAPS_API_KEY=YOUR_ANDROID_MAPS_AND_PLACES_KEY

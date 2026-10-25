@@ -49,7 +49,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyB4Xsw5IoKo5QS0bbgkIklPWAnMuf_4Eqw',
-    appId: '1:155641305476:android:5b32133a354a0141fa65d1',
+    appId: '1:155641305476:android:672e7e458d56fb2efa65d1',
     messagingSenderId: '155641305476',
     projectId: 'parkingreminder-6466d',
     storageBucket: 'parkingreminder-6466d.firebasestorage.app',
@@ -61,6 +61,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '910421011591',
     projectId: 'parking-reminder-a94ff',
     storageBucket: 'parking-reminder-a94ff.firebasestorage.app',
-    iosBundleId: 'com.findall.ParkingReminder',
+    iosBundleId: 'com.lukacode.sosapp',
   );
 }

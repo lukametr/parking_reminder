@@ -13,6 +13,9 @@ class NotificationService {
   static late NotificationActionCallback _onActionCallback;
   static int _notificationCounter = 0;
 
+  /// Native FGS notification id (ParkingNotifier.MONITOR_ID).
+  static const int foregroundMonitorId = 888;
+
   /// პლაგინის ინიციალიზაცია და callback-ის გადაცემა, რომლითაც ვიგებთ მომხმარებლის ქმედებას შეტყობინებაზე
   static Future<void> initialize({
     NotificationActionCallback? onActionCallback,
@@ -21,7 +24,7 @@ class NotificationService {
       _onActionCallback = onActionCallback;
     }
 
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidInit = AndroidInitializationSettings('@drawable/ic_notification');
     const iosInit = DarwinInitializationSettings();
     const initSettings = InitializationSettings(
       android: androidInit,
@@ -34,9 +37,7 @@ class NotificationService {
         // actionId: 'park', 'cancel', 'tap' (ღილაკის ან notification-ის დაჭერა)
         final action = response.actionId?.isNotEmpty == true ? response.actionId : 'tap';
         final payload = response.payload;
-        if (_onActionCallback != null) {
-          _onActionCallback(action!, payload);
-        }
+        _onActionCallback(action ?? 'tap', payload);
       },
     );
   }
@@ -45,6 +46,7 @@ class NotificationService {
   static Future<void> showSimpleNotification({
     required String title,
     required String message,
+    String? payload,
   }) async {
     final notificationId = _getNextNotificationId();
     const androidDetails = AndroidNotificationDetails(
@@ -52,7 +54,7 @@ class NotificationService {
       'Simple Notifications',
       importance: Importance.max,
       priority: Priority.high,
-      icon: '@mipmap/ic_custom',
+      icon: '@drawable/ic_notification',
     );
     const iosDetails = DarwinNotificationDetails();
     const details = NotificationDetails(
@@ -65,7 +67,37 @@ class NotificationService {
       title,
       message,
       details,
-      payload: 'tap',
+      payload: payload ?? 'tap',
+    );
+  }
+
+  /// Leave-lot: remind to turn parking OFF in the official MSDA app.
+  static Future<void> showLeaveLotNotification({required String lotNumber}) async {
+    final int notificationId = _getNextNotificationId();
+    final androidDetails = AndroidNotificationDetails(
+      'parking_channel',
+      'Parking Notifications',
+      channelDescription: 'Notifications for parking zones',
+      importance: Importance.high,
+      priority: Priority.high,
+      actions: const [
+        AndroidNotificationAction(
+          'open_official_app',
+          'გამორთვა ოფიციალურ აპში',
+          showsUserInterface: true,
+          cancelNotification: true,
+        ),
+      ],
+    );
+    await _flnp.show(
+      notificationId,
+      'დატოვეთ პარკირების ლოტი',
+      '$lotNumber — გამორთეთ პარკირება ოფიციალურ აპში (MSDA / ge.msda.parking).',
+      NotificationDetails(android: androidDetails),
+      payload: json.encode({
+        'action': 'open_official_app',
+        'lotNumber': lotNumber,
+      }),
     );
   }
 
@@ -93,26 +125,10 @@ class NotificationService {
       importance: Importance.high,
       priority: Priority.high,
       showWhen: true,
-      actions: isLeavingZone ? [] : [
-        const AndroidNotificationAction(
-          'open_app',
-          'დაწყება',
-          showsUserInterface: true,
-          cancelNotification: true,
-        ),
-        const AndroidNotificationAction(
-          'block_notifications',
-          'საცობი',
-          showsUserInterface: false,
-          cancelNotification: true,
-        ),
-        const AndroidNotificationAction(
-          'cancel',
-          'გაუქმება',
-          showsUserInterface: false,
-          cancelNotification: true,
-        ),
-      ],
+      icon: '@drawable/ic_notification',
+      fullScreenIntent: true,
+      category: AndroidNotificationCategory.alarm,
+      styleInformation: BigTextStyleInformation(body),
     );
 
     final notificationDetails = NotificationDetails(
@@ -141,6 +157,9 @@ class NotificationService {
   /// შემდეგი უნიკალური notification ID-ის მიღება
   static int _getNextNotificationId() {
     _notificationCounter = (_notificationCounter + 1) % 1000;
+    if (_notificationCounter == foregroundMonitorId) {
+      _notificationCounter = foregroundMonitorId + 1;
+    }
     return _notificationCounter;
   }
 
@@ -168,12 +187,29 @@ class NotificationService {
 
   /// კონკრეტული შეტყობინების გაუქმება
   static Future<void> cancelNotification(int id) async {
+    if (id == foregroundMonitorId) return;
     await _flnp.cancel(id);
   }
 
-  /// ყველა შეტყობინების გაუქმება
+  /// ყველა შეტყობინების გაუქმება (FGS 888 რჩება)
   static Future<void> cancelAll() async {
-    await _flnp.cancelAll();
+    final AndroidFlutterLocalNotificationsPlugin? android =
+        _flnp.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+    final List<ActiveNotification>? active =
+        await android?.getActiveNotifications();
+    if (active != null) {
+      for (final ActiveNotification n in active) {
+        final int? id = n.id;
+        if (id == null || id == foregroundMonitorId) continue;
+        await _flnp.cancel(id);
+      }
+      return;
+    }
+    for (int i = 0; i <= 1000; i++) {
+      if (i == foregroundMonitorId) continue;
+      await _flnp.cancel(i);
+    }
   }
 
   /// შეტყობინებების დროებითი გაუქმება
@@ -183,6 +219,7 @@ class NotificationService {
     // 15 წუთი = 15 * 60 * 1000 მილიწამი
     final blockUntil = now + (15 * 60 * 1000);
     await prefs.setInt('notifications_blocked_until', blockUntil);
+    // ignore: avoid_print
     print('Notifications blocked until: ${DateTime.fromMillisecondsSinceEpoch(blockUntil)}');
     await cancelAll();
   }
@@ -202,7 +239,7 @@ class NotificationService {
       channelDescription: 'Notifications for parking zones',
       importance: Importance.high,
       priority: Priority.high,
-      icon: '@mipmap/ic_custom',
+      icon: '@drawable/ic_notification',
       ongoing: true,
     );
     const iosDetails = DarwinNotificationDetails();
@@ -212,8 +249,8 @@ class NotificationService {
     );
 
     await _flnp.show(
-      888,
-      'Parking Reminder',
+      887,
+      'პარკინგის მონიტორინგი ჩართულია',
       'Tracking your location...',
       details,
     );
@@ -229,26 +266,9 @@ class NotificationService {
       importance: Importance.high,
       priority: Priority.high,
       showWhen: true,
-      actions: [
-        const AndroidNotificationAction(
-          'open_app',
-          'დაწყება',
-          showsUserInterface: true,
-          cancelNotification: true,
-        ),
-        const AndroidNotificationAction(
-          'block_notifications',
-          'საცობი',
-          showsUserInterface: false,
-          cancelNotification: true,
-        ),
-        const AndroidNotificationAction(
-          'cancel',
-          'გაუქმება',
-          showsUserInterface: false,
-          cancelNotification: true,
-        ),
-      ],
+      icon: '@drawable/ic_notification',
+      fullScreenIntent: true,
+      category: AndroidNotificationCategory.alarm,
     );
 
     final notificationDetails = NotificationDetails(
