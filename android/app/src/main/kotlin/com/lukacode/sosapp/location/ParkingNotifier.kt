@@ -18,6 +18,8 @@ object ParkingNotifier {
     const val MONITOR_ID = 888
     const val ALERT_ID = 890
     const val REMINDER_ID = 891
+    const val RESUME_ID = 892
+    const val EXTRA_RESUME_MONITOR = "resume_monitor"
 
     fun ensureChannels(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -111,6 +113,42 @@ object ParkingNotifier {
             },
             requestCode = 12,
         )
+    }
+
+    /**
+     * Safe path when Android blocks background FGS starts (boot, Honor OEM, AR wake
+     * after process death). User tap brings the app to foreground so FGS can start.
+     */
+    fun showResumeMonitoring(context: Context) {
+        ensureChannels(context)
+        val launch = PendingIntent.getActivity(
+            context,
+            13,
+            Intent(context, MainActivity::class.java).apply {
+                addFlags(
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_NEW_TASK,
+                )
+                putExtra(EXTRA_RESUME_MONITOR, true)
+            },
+            pendingFlags(),
+        )
+        val body = "შეეხეთ მონიტორინგის გასაგრძელებლად (ფონური შეზღუდვა)"
+        val n = NotificationCompat.Builder(context, CHANNEL_ALERTS)
+            .setContentTitle("პარკინგის მონიტორინგი შეჩერდა")
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setSmallIcon(R.drawable.ic_notification)
+            .setAutoCancel(true)
+            .setContentIntent(launch)
+            .setCategory(NotificationCompat.CATEGORY_RECOMMENDATION)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .build()
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.notify(RESUME_ID, n)
     }
 
     private fun notifyFullScreen(

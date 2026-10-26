@@ -42,11 +42,25 @@ class MainActivity : FlutterActivity() {
     override fun onResume() {
         super.onResume()
         ParkingMonitorService.appInForeground = true
+        maybeRestartMonitorIfWanted()
     }
 
     override fun onPause() {
         ParkingMonitorService.appInForeground = false
         super.onPause()
+    }
+
+    /** After a blocked background FGS start, opening the UI is the allowed window. */
+    private fun maybeRestartMonitorIfWanted() {
+        val resume = intent?.getBooleanExtra(ParkingNotifier.EXTRA_RESUME_MONITOR, false) == true
+        if (resume) {
+            intent?.removeExtra(ParkingNotifier.EXTRA_RESUME_MONITOR)
+        }
+        val wanted = getSharedPreferences(ParkingMonitorService.PREFS, MODE_PRIVATE)
+            .getBoolean(ParkingMonitorService.PREF_WANTED, false)
+        if ((wanted || resume) && !ParkingMonitorService.isRunning) {
+            ParkingMonitorService.start(this)
+        }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
