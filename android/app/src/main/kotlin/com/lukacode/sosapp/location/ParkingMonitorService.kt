@@ -1,6 +1,8 @@
 package com.lukacode.sosapp.location
 
 import android.Manifest
+import android.app.ActivityManager
+import android.app.ForegroundServiceStartNotAllowedException
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
@@ -12,9 +14,11 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.Process
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
 import com.google.android.gms.location.ActivityRecognition
 import com.google.android.gms.location.DetectedActivity
 import com.google.android.gms.location.Geofence
@@ -27,6 +31,7 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import org.json.JSONObject
+import java.util.concurrent.Executors
 
 /**
  * Play Services Fused Location + Activity Recognition + nearby-lot geofences.
@@ -51,6 +56,9 @@ class ParkingMonitorService : Service() {
     private val promptPolicy by lazy { LotPromptPolicy(prefs()) }
     private val handler = Handler(Looper.getMainLooper())
     private val dwellRunnable = Runnable { fireStayPromptIfReady("timer") }
+    private val ioExecutor = Executors.newSingleThreadExecutor()
+    private var promoted = false
+    private var initialized = false
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -69,13 +77,18 @@ class ParkingMonitorService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        isRunning = true
+        // Promote within the FGS start window BEFORE any I/O or Play Services work.
         ParkingNotifier.ensureChannels(this)
-        index = LotIndex(LotStore.load(this))
-        Log.i(TAG, "onCreate lots=${index.size} fine=${hasFine()}")
-        startAsForeground()
-        startActivityUpdates()
-        applyLocationMode(DetectedActivity.UNKNOWN)
+        if (!startAsForeground()) {
+            isRunning = false
+            ParkingNotifier.showResumeMonitoring(applicationContext)
+            stopSelf()
+            return
+        }
+        promoted = true
         prefs().edit().putBoolean(PREF_WANTED, true).apply()
+        ensureInitialized()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -95,8 +108,13 @@ class ParkingMonitorService : Service() {
                 lastActivity = DetectedActivity.STILL
             }
             ACTION_RELOAD_LOTS -> {
-                index = LotIndex(LotStore.load(this))
-                Log.i(TAG, "reload lots n=${index.size}")
+                ioExecutor.execute {
+                    val lots = LotStore.load(this)
+                    handler.post {
+                        index = LotIndex(lots)
+                        Log.i(TAG, "reload lots n=${index.size}")
+                    }
+                }
             }
             ACTION_SET_SESSION -> {
                 prefs().edit()
@@ -127,13 +145,49 @@ class ParkingMonitorService : Service() {
                 prefs().edit().remove(LotPromptPolicy.PREF_PENDING_LOTS).apply()
             }
         }
-        startAsForeground()
+        if (!promoted) {
+            ParkingNotifier.ensureChannels(this)
+            if (!startAsForeground()) {
+                isRunning = false
+                ParkingNotifier.showResumeMonitoring(applicationContext)
+                stopSelf()
+                return START_NOT_STICKY
+            }
+            promoted = true
+            prefs().edit().putBoolean(PREF_WANTED, true).apply()
+            ensureInitialized()
+        } else if (!startAsForeground()) {
+            // Already promoted once; a later denial should not crash — keep running if possible.
+            Log.w(TAG, "startForeground refresh denied; continuing with existing FGS state")
+        }
         return START_STICKY
     }
 
     override fun onDestroy() {
         teardownAndStopForeground()
+        isRunning = false
+        promoted = false
+        initialized = false
         super.onDestroy()
+    }
+
+    private fun ensureInitialized() {
+        if (initialized) return
+        initialized = true
+        ioExecutor.execute {
+            val lots = try {
+                LotStore.load(this)
+            } catch (e: Exception) {
+                Log.e(TAG, "LotStore.load failed", e)
+                emptyList()
+            }
+            handler.post {
+                index = LotIndex(lots)
+                Log.i(TAG, "initialized lots=${index.size} fine=${hasFine()}")
+                startActivityUpdates()
+                applyLocationMode(DetectedActivity.UNKNOWN)
+            }
+        }
     }
 
     private fun teardownAndStopForeground() {
@@ -161,20 +215,37 @@ class ParkingMonitorService : Service() {
         }
     }
 
-    private fun startAsForeground() {
+    /**
+     * @return true if the service is now in the foreground (or already was).
+     * Never throws [ForegroundServiceStartNotAllowedException] out of process.
+     */
+    private fun startAsForeground(): Boolean {
         val n = ParkingNotifier.monitorNotification(
             this,
             "აპი ამოწმებს თბილისის ფასიან პარკირების ლოტებს",
         )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ServiceCompat.startForeground(
-                this,
-                ParkingNotifier.MONITOR_ID,
-                n,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION,
-            )
-        } else {
-            startForeground(ParkingNotifier.MONITOR_ID, n)
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ServiceCompat.startForeground(
+                    this,
+                    ParkingNotifier.MONITOR_ID,
+                    n,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION,
+                )
+            } else {
+                startForeground(ParkingNotifier.MONITOR_ID, n)
+            }
+            true
+        } catch (e: Exception) {
+            if (isStartNotAllowed(e)) {
+                Log.e(TAG, "startForeground not allowed (background FGS restriction)", e)
+                recordNonFatal(e)
+                false
+            } else {
+                Log.e(TAG, "startForeground failed", e)
+                recordNonFatal(e)
+                false
+            }
         }
     }
 
@@ -398,6 +469,8 @@ class ParkingMonitorService : Service() {
         const val EXTRA_LNG = "lng"
         @Volatile
         var appInForeground = false
+        @Volatile
+        var isRunning = false
         private const val TAG = "ParkingMon"
         const val STOP_SPEED_MPS = 2.8
         /** Stay-prompt match: nearest lot only, and only inside this radius. */
@@ -410,31 +483,60 @@ class ParkingMonitorService : Service() {
         const val PREF_LEFT_NOTIFIED = "left_notified"
         const val EXIT_BUFFER_METERS = 80.0
 
+        /**
+         * Start (or command) the parking FGS only when Android allows it.
+         * Background / boot / dead-process wakes fall back to a high-priority
+         * "tap to resume" notification instead of crashing.
+         */
         fun start(context: Context, extras: Intent? = null) {
-            val i = (extras ?: Intent()).setClass(context, ParkingMonitorService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(i)
-            } else {
-                context.startService(i)
+            val app = context.applicationContext
+            app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean(PREF_WANTED, true)
+                .apply()
+            val i = (extras ?: Intent()).setClass(app, ParkingMonitorService::class.java)
+            if (!canStartForegroundService(app)) {
+                Log.w(TAG, "FGS start skipped — app not eligible; showing resume notification")
+                ParkingNotifier.showResumeMonitoring(app)
+                return
+            }
+            try {
+                ContextCompat.startForegroundService(app, i)
+            } catch (e: Exception) {
+                if (isStartNotAllowed(e)) {
+                    Log.e(TAG, "startForegroundService not allowed", e)
+                    recordNonFatal(e)
+                    ParkingNotifier.showResumeMonitoring(app)
+                } else {
+                    Log.e(TAG, "startForegroundService failed", e)
+                    recordNonFatal(e)
+                    ParkingNotifier.showResumeMonitoring(app)
+                }
             }
         }
 
         fun stop(context: Context) {
-            context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val app = context.applicationContext
+            app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .edit()
                 .putBoolean(PREF_WANTED, false)
                 .apply()
-            val i = Intent(context, ParkingMonitorService::class.java).setAction(ACTION_STOP)
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(i)
-                } else {
-                    context.startService(i)
+            val i = Intent(app, ParkingMonitorService::class.java).setAction(ACTION_STOP)
+            if (isRunning && canStartForegroundService(app)) {
+                try {
+                    ContextCompat.startForegroundService(app, i)
+                } catch (e: Exception) {
+                    Log.w(TAG, "stop via FGS failed; falling back to stopService", e)
                 }
+            }
+            try {
+                app.stopService(Intent(app, ParkingMonitorService::class.java))
             } catch (_: Exception) {
             }
             try {
-                context.stopService(Intent(context, ParkingMonitorService::class.java))
+                val nm = app.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                nm.cancel(ParkingNotifier.MONITOR_ID)
+                nm.cancel(ParkingNotifier.RESUME_ID)
             } catch (_: Exception) {
             }
         }
@@ -453,6 +555,7 @@ class ParkingMonitorService : Service() {
                 nm.cancel(ParkingNotifier.MONITOR_ID)
                 nm.cancel(ParkingNotifier.ALERT_ID)
                 nm.cancel(ParkingNotifier.REMINDER_ID)
+                nm.cancel(ParkingNotifier.RESUME_ID)
             } catch (_: Exception) {
             }
         }
@@ -475,6 +578,44 @@ class ParkingMonitorService : Service() {
                 p.edit().remove(LotPromptPolicy.PREF_PENDING_LOTS).apply()
             }
             return lots
+        }
+
+        /** True when Android is likely to allow startForegroundService / startForeground. */
+        fun canStartForegroundService(context: Context): Boolean {
+            if (appInForeground) return true
+            // Existing FGS in this process is an Android exemption.
+            if (isRunning) return true
+            return try {
+                val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+                val proc = am.runningAppProcesses?.firstOrNull { it.pid == Process.myPid() }
+                val importance = proc?.importance ?: ActivityManager.RunningAppProcessInfo.IMPORTANCE_GONE
+                importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+            } catch (_: Exception) {
+                false
+            }
+        }
+
+        fun isStartNotAllowed(e: Throwable): Boolean {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                e is ForegroundServiceStartNotAllowedException
+            ) {
+                return true
+            }
+            var cur: Throwable? = e
+            while (cur != null) {
+                if (cur.javaClass.name.contains("ForegroundServiceStartNotAllowed")) return true
+                cur = cur.cause
+            }
+            return false
+        }
+
+        fun recordNonFatal(t: Throwable) {
+            try {
+                val clazz = Class.forName("com.google.firebase.crashlytics.FirebaseCrashlytics")
+                val instance = clazz.getMethod("getInstance").invoke(null)
+                clazz.getMethod("recordException", Throwable::class.java).invoke(instance, t)
+            } catch (_: Exception) {
+            }
         }
 
         private fun immutable(): Int {
