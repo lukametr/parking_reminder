@@ -1,0 +1,69 @@
+# Codemagic CI for Parking Reminder + (com.lukacode.sosapp) iOS.
+#
+# Codemagic → App settings → Environment variables, group "sosapp_ios"
+# (mark each as Secure):
+#   MAPS_API_KEY       iOS Google Maps key (the places map stays blank without it)
+#   ADMOB_IOS_APP_ID   optional, iOS AdMob app ID ca-app-pub-...~... (Google test ID when empty)
+#
+# ios-release also needs an App Store Connect API key added in
+# Codemagic → Teams → Integrations → Developer Portal, named "SOS ASC".
+
+workflows:
+  ios-check:
+    name: iOS build check (no signing)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      flutter: 3.47.6
+      xcode: latest
+      cocoapods: default
+      groups:
+        - sosapp_ios
+    scripts:
+      - &secrets
+        name: Write local secrets
+        script: |
+          {
+            echo "MAPS_API_KEY = ${MAPS_API_KEY:-}"
+            if [ -n "${ADMOB_IOS_APP_ID:-}" ]; then echo "ADMOB_IOS_APP_ID = $ADMOB_IOS_APP_ID"; fi
+          } > ios/Flutter/Secrets.xcconfig
+      - &pods
+        name: Flutter packages and pods
+        script: |
+          flutter pub get
+          cd ios && pod install --repo-update
+      - name: Build iOS without signing
+        script: flutter build ios --release --no-codesign
+
+  ios-release:
+    name: iOS release to TestFlight
+    max_build_duration: 90
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: SOS ASC
+    environment:
+      flutter: 3.47.6
+      xcode: latest
+      cocoapods: default
+      groups:
+        - sosapp_ios
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.lukacode.sosapp
+    scripts:
+      - *secrets
+      - *pods
+      - name: Use Codemagic signing profiles
+        script: xcode-project use-profiles
+      - name: Build IPA
+        script: |
+          flutter build ipa --release \
+            --build-number=$(($(date +%s) / 60)) \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true

@@ -56,11 +56,11 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCkBEAlrdAf0HHVoZDGnfz003n8X5b4hgM',
-    appId: '1:910421011591:ios:ad04f0d7f9c3e550de1c22',
-    messagingSenderId: '910421011591',
-    projectId: 'parking-reminder-a94ff',
-    storageBucket: 'parking-reminder-a94ff.firebasestorage.app',
+    apiKey: 'AIzaSyCnW6OELtAdti8keY1bX3wVdqoyTDM42_Q',
+    appId: '1:155641305476:ios:a490b23c4bc7b760fa65d1',
+    messagingSenderId: '155641305476',
+    projectId: 'parkingreminder-6466d',
+    storageBucket: 'parkingreminder-6466d.firebasestorage.app',
     iosBundleId: 'com.lukacode.sosapp',
   );
 }
