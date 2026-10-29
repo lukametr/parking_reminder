@@ -73,8 +73,13 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            signingConfig = signingConfigs.findByName("release")
-                ?: signingConfigs.getByName("debug")
+            val releaseSigning = signingConfigs.findByName("release")
+            check(releaseSigning != null) {
+                "Missing android/key.properties (and upload keystore). " +
+                    "Release builds must use Play upload signing — copy key.properties.example " +
+                    "to key.properties and set storeFile/passwords. Debug builds are unchanged."
+            }
+            signingConfig = releaseSigning
         }
         getByName("debug") {
             isMinifyEnabled = false
