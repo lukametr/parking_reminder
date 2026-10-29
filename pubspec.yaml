@@ -31,6 +31,10 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # google_mobile_ads 5.x resolves webview_flutter_wkwebview as a CocoaPod, which
+  # pod install cannot find while that plugin comes in through Swift Package Manager.
+  config:
+    enable-swift-package-manager: false
   assets:
     - assets/security-agent.png
     - assets/food.png
