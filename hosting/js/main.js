@@ -1,13 +1,16 @@
 (() => {
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  // Store CTAs: paste URL into data-store-url (see docs/landing-page.md)
+  // Store CTAs: live http(s) links open in a new tab; empty URL = App Store მალე only
   document.querySelectorAll("[data-store]").forEach((el) => {
-    const url = (el.getAttribute("data-store-url") || "").trim();
-    if (url && /^https?:\/\//i.test(url)) {
+    const url = (el.getAttribute("data-store-url") || el.getAttribute("href") || "").trim();
+    const isLive = /^https?:\/\//i.test(url) && url !== "#";
+    if (isLive) {
       el.setAttribute("href", url);
+      el.setAttribute("target", "_blank");
+      el.setAttribute("rel", "noopener noreferrer");
       el.removeAttribute("aria-disabled");
-      el.addEventListener("click", () => {});
+      el.classList.remove("store-btn--soon");
     } else {
       el.addEventListener("click", (event) => {
         event.preventDefault();
