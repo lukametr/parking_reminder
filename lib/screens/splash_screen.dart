@@ -113,9 +113,11 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
   }
 
   void _loadBanner() {
+    final String? unitId = AdConfig.bannerId;
+    if (unitId == null) return;
     _banner = BannerAd(
       size: AdSize.banner,
-      adUnitId: AdConfig.bannerId,
+      adUnitId: unitId,
       listener: BannerAdListener(
         onAdLoaded: (Ad ad) {
           if (mounted) setState(() => _bannerReady = true);

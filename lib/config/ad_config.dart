@@ -1,13 +1,12 @@
 import 'package:flutter/foundation.dart';
 
-/// AdMob IDs. App ID uses `~`; ad units use `/`.
-/// Play package is `com.lukacode.sosapp`. These units were created under the
-/// listing that used `com.findall.ParkingReminder` — LM should add/link an
-/// AdMob Android app for `com.lukacode.sosapp` (or the Play store listing)
-/// so the same units stay valid.
+/// AdMob IDs for `com.lukacode.sosapp`. App ID uses `~`; ad units use `/`.
+/// Release builds use the real units; debug builds use Google's sample units.
 class AdConfig {
   static const String adMobAppId = 'ca-app-pub-8872582533953072~4948596381';
-  static const String bannerAdUnitId = 'ca-app-pub-8872582533953072/4282381975';
+
+  /// Must be a Banner-format unit. Empty means no banner in release builds.
+  static const String bannerAdUnitId = '';
   static const String interstitialAdUnitId =
       'ca-app-pub-8872582533953072/1616568991';
 
@@ -16,13 +15,13 @@ class AdConfig {
   static const String testInterstitialAdUnitId =
       'ca-app-pub-3940256099942544/1033173712';
 
-  /// Google sample interstitial — debug only. Release always uses the real unit.
-  static const bool useGoogleTestInterstitial = kDebugMode;
+  static const bool useTestAds = kDebugMode;
 
-  static String get bannerId => bannerAdUnitId;
-
-  static String get interstitialId {
-    if (useGoogleTestInterstitial) return testInterstitialAdUnitId;
-    return interstitialAdUnitId;
+  static String? get bannerId {
+    if (useTestAds) return testBannerAdUnitId;
+    return bannerAdUnitId.isEmpty ? null : bannerAdUnitId;
   }
+
+  static String get interstitialId =>
+      useTestAds ? testInterstitialAdUnitId : interstitialAdUnitId;
 }

@@ -32,7 +32,7 @@ class NearbyPlacesScreen extends StatefulWidget {
 }
 
 class _NearbyPlacesScreenState extends State<NearbyPlacesScreen> {
-  static const LatLng _tbilisi = LatLng(41.7151, 44.8271);
+  static const LatLng _georgia = LatLng(42.3154, 43.3569);
 
   final MapController _map = MapController();
   final NearbyPlacesService _service = NearbyPlacesService();
@@ -362,8 +362,8 @@ class _NearbyPlacesScreenState extends State<NearbyPlacesScreen> {
     return FlutterMap(
       mapController: _map,
       options: MapOptions(
-        initialCenter: _me ?? _tbilisi,
-        initialZoom: _me == null ? 12 : 15,
+        initialCenter: _me ?? _georgia,
+        initialZoom: _me == null ? 7 : 15,
         minZoom: 5,
         maxZoom: 19,
         interactionOptions: const InteractionOptions(

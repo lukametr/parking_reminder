@@ -54,7 +54,7 @@ void main() {
       category: NearbyCategory.police,
       lat: lat,
       lng: lng,
-      minResultsBeforeWidening: 0,
+      minResults: 0,
     );
 
     expect(queries.single, contains('nwr["amenity"="police"](around:2500,$lat,$lng);'));
@@ -66,7 +66,7 @@ void main() {
     expect(result.places[1].name, NearbyCategory.police.singular);
   });
 
-  test('widens the radius when too few results', () async {
+  test('widens 2.5 → 5 → 10 km and stops at 10 km', () async {
     final List<String> queries = [];
     final MockClient client = MockClient((http.Request req) async {
       queries.add(Uri.splitQueryString(req.body)['data']!);
@@ -79,10 +79,44 @@ void main() {
       lng: lng,
     );
 
-    expect(queries, hasLength(2));
-    expect(queries.last, contains('around:7000'));
-    expect(result.radiusMeters, 7000);
+    expect(queries, hasLength(3));
+    expect(
+      queries.map((q) => RegExp(r'around:(\d+)').firstMatch(q)!.group(1)),
+      ['2500', '5000', '10000'],
+    );
+    expect(result.radiusMeters, 10000);
     expect(result.places, isEmpty);
+  });
+
+  test('stops widening once enough places are found', () async {
+    int call = 0;
+    final MockClient client = MockClient((http.Request req) async {
+      call++;
+      final int n = call == 1 ? 1 : 6;
+      return http.Response(
+        overpass([
+          for (int i = 0; i < n; i++)
+            {
+              'type': 'node',
+              'id': i,
+              'lat': lat + i * 0.001,
+              'lon': lng,
+              'tags': {'amenity': 'fuel'},
+            },
+        ]),
+        200,
+      );
+    });
+
+    final result = await NearbyPlacesService(client: client).search(
+      category: NearbyCategory.fuel,
+      lat: lat,
+      lng: lng,
+    );
+
+    expect(call, 2);
+    expect(result.radiusMeters, 5000);
+    expect(result.places, hasLength(6));
   });
 
   test('falls back to the next endpoint and throws when all fail', () async {
@@ -93,7 +127,7 @@ void main() {
     });
 
     await expectLater(
-      NearbyPlacesService(client: failing).search(
+      NearbyPlacesService(client: failing, nominatimSpacing: Duration.zero).search(
         category: NearbyCategory.pharmacy,
         lat: lat,
         lng: lng,
@@ -130,7 +164,7 @@ void main() {
     });
 
     final result = await NearbyPlacesService(client: client, nominatimSpacing: Duration.zero)
-        .search(category: NearbyCategory.food, lat: lat, lng: lng, minResultsBeforeWidening: 0);
+        .search(category: NearbyCategory.food, lat: lat, lng: lng, minResults: 0);
 
     expect(calls.where((u) => u.host != 'nominatim.openstreetmap.org'), hasLength(2));
     expect(calls.where((u) => u.host == 'nominatim.openstreetmap.org'), hasLength(3));
@@ -145,5 +179,6 @@ void main() {
   test('formats distances in Georgian units', () {
     expect(NearbyPlacesService.formatDistance(420), '420 მ');
     expect(NearbyPlacesService.formatDistance(2500), '2.5 კმ');
+    expect(NearbyPlacesService.formatDistance(10000), '10 კმ');
   });
 }

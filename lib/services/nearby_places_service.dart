@@ -59,22 +59,26 @@ class NearbyPlacesService {
   static const String _userAgent = 'ParkingReminderPlus/1.1 (com.lukacode.sosapp)';
   static const int maxResults = 60;
 
-  bool _overpassDown = false;
+  /// City-sized first, widening for towns and villages; 10 km is the cap.
+  static const List<int> radiusSteps = [2500, 5000, 10000];
 
-  /// Searches [radiusMeters] first and widens once when too few results come back.
+  bool _overpassDown = false;
+  DateTime? _lastNominatimAt;
+
+  /// Searches each radius in [radii] until at least [minResults] places are found.
   Future<({List<NearbyPlace> places, int radiusMeters})> search({
     required NearbyCategory category,
     required double lat,
     required double lng,
-    int radiusMeters = 2500,
-    int widenedRadiusMeters = 7000,
-    int minResultsBeforeWidening = 5,
+    List<int> radii = radiusSteps,
+    int minResults = 5,
   }) async {
-    List<NearbyPlace> places = await _query(category, lat, lng, radiusMeters);
-    int usedRadius = radiusMeters;
-    if (places.length < minResultsBeforeWidening && widenedRadiusMeters > radiusMeters) {
-      places = await _query(category, lat, lng, widenedRadiusMeters);
-      usedRadius = widenedRadiusMeters;
+    List<NearbyPlace> places = const [];
+    int usedRadius = radii.first;
+    for (final int radius in radii) {
+      places = await _query(category, lat, lng, radius);
+      usedRadius = radius;
+      if (places.length >= minResults) break;
     }
     return (places: places, radiusMeters: usedRadius);
   }
@@ -102,9 +106,11 @@ class NearbyPlacesService {
     int radius,
   ) async {
     final String around = '(around:$radius,$lat,$lng)';
-    final String body = '[out:json][timeout:20];('
+    // A small server-side timeout and maxsize make a busy instance fail fast
+    // instead of stalling the next fallback.
+    final String body = '[out:json][timeout:8][maxsize:33554432];('
         '${category.osmFilters.map((f) => 'nwr$f$around;').join()}'
-        ');out center tags 300;';
+        ');out center tags 400;';
 
     Object? lastError;
     for (final String endpoint in _overpassEndpoints) {
@@ -118,7 +124,7 @@ class NearbyPlacesService {
               },
               body: {'data': body},
             )
-            .timeout(const Duration(seconds: 8));
+            .timeout(const Duration(seconds: 9));
         if (res.statusCode != 200) {
           lastError = 'HTTP ${res.statusCode}';
           continue;
@@ -167,7 +173,12 @@ class NearbyPlacesService {
     Object? lastError;
     bool anyOk = false;
     for (int i = 0; i < category.nominatimQueries.length; i++) {
-      if (i > 0) await Future<void>.delayed(nominatimSpacing);
+      final DateTime? last = _lastNominatimAt;
+      if (last != null) {
+        final Duration wait = nominatimSpacing - DateTime.now().difference(last);
+        if (wait > Duration.zero) await Future<void>.delayed(wait);
+      }
+      _lastNominatimAt = DateTime.now();
       try {
         final http.Response res = await _client.get(
           Uri.https(_nominatimHost, '/search', {
@@ -325,6 +336,7 @@ class NearbyPlacesService {
 
   static String formatDistance(double meters) {
     if (meters < 1000) return '${meters.round()} მ';
-    return '${(meters / 1000).toStringAsFixed(1)} კმ';
+    final String km = (meters / 1000).toStringAsFixed(1);
+    return '${km.endsWith('.0') ? km.substring(0, km.length - 2) : km} კმ';
   }
 }
