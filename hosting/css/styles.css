@@ -82,7 +82,9 @@ a {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center top;
+  /* Prefer asphalt / SOS area — avoid app title chrome behind copy */
+  object-position: 70% 62%;
+  filter: saturate(1.05) contrast(1.05);
   transform: scale(1.04);
   animation: heroZoom 8s var(--ease) both;
 }
@@ -92,8 +94,8 @@ a {
   inset: 0;
   z-index: -1;
   background:
-    linear-gradient(90deg, rgba(7, 11, 20, 0.92) 0%, rgba(7, 11, 20, 0.72) 42%, rgba(7, 11, 20, 0.35) 100%),
-    linear-gradient(180deg, rgba(7, 11, 20, 0.25) 0%, rgba(7, 11, 20, 0.55) 55%, rgba(7, 11, 20, 0.95) 100%);
+    linear-gradient(90deg, rgba(7, 11, 20, 0.96) 0%, rgba(7, 11, 20, 0.88) 38%, rgba(7, 11, 20, 0.45) 72%, rgba(7, 11, 20, 0.55) 100%),
+    linear-gradient(180deg, rgba(7, 11, 20, 0.55) 0%, rgba(7, 11, 20, 0.35) 40%, rgba(7, 11, 20, 0.92) 100%);
 }
 
 .hero__content {
@@ -345,16 +347,44 @@ main {
 }
 
 @media (max-width: 720px) {
+  .hero {
+    min-height: 100svh;
+  }
+
   .hero__content {
     padding: 4.25rem 0 2.5rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  .hero__media img {
+    object-position: 65% 70%;
+    filter: brightness(0.55) saturate(1.05);
   }
 
   .hero__veil {
     background:
-      linear-gradient(180deg, rgba(7, 11, 20, 0.45) 0%, rgba(7, 11, 20, 0.72) 42%, rgba(7, 11, 20, 0.96) 100%);
+      linear-gradient(180deg,
+        rgba(7, 11, 20, 0.72) 0%,
+        rgba(7, 11, 20, 0.55) 28%,
+        rgba(7, 11, 20, 0.88) 58%,
+        rgba(7, 11, 20, 0.98) 100%);
   }
 
   .brand {
     font-size: clamp(2.1rem, 10vw, 2.7rem);
+  }
+
+  .hero h1 {
+    max-width: 18ch;
+  }
+
+  .cta-row {
+    width: 100%;
+  }
+
+  .store-btn {
+    flex: 1 1 calc(50% - 0.4rem);
+    min-width: 0;
   }
 }
