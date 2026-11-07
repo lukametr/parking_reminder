@@ -13,14 +13,9 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:parking_reminder/config/ad_config.dart';
 import 'package:parking_reminder/config/privacy.dart';
+import 'package:parking_reminder/models/nearby_category.dart';
 import 'package:parking_reminder/notifications/overlay_notification.dart';
-import 'package:parking_reminder/screens/auto_service_map_screen.dart';
-import 'package:parking_reminder/screens/food_map_screen.dart';
-import 'package:parking_reminder/screens/gas_station_map_screen.dart';
-import 'package:parking_reminder/screens/pharmacy_map_screen.dart';
-import 'package:parking_reminder/screens/police_map_screen.dart';
-import 'package:parking_reminder/screens/shop_map_screen.dart';
-import 'package:parking_reminder/screens/vulcanization_map_screen.dart';
+import 'package:parking_reminder/screens/nearby_places_screen.dart';
 import 'package:parking_reminder/services/notification_service.dart';
 import 'package:parking_reminder/services/parking_monitor.dart';
 import 'package:parking_reminder/services/parking_service.dart';
@@ -821,56 +816,15 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
                               color: Colors.transparent,
                               child: InkWell(
                                 onTap: () {
-                                  if (service['title'] == 'აფთიაქი') {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const PharmacyMapScreen(),
-                                      ),
-                                    );
-                                  } else if (service['title'] == 'პოლიცია') {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const PoliceMapScreen(),
-                                      ),
-                                    );
-                                  } else if (service['title'] == 'კვება') {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const FoodMapScreen(),
-                                      ),
-                                    );
-                                  } else if (service['title'] == 'მაღაზია') {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const ShopMapScreen(),
-                                      ),
-                                    );
-                                  } else if (service['title'] == 'ავტოსერვისი') {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const AutoServiceMapScreen(),
-                                      ),
-                                    );
-                                  } else if (service['title'] == 'ვულკანიზაცია') {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const VulcanizationMapScreen(),
-                                      ),
-                                    );
-                                  } else if (service['title'] == 'საწვავი') {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => const GasStationMapScreen(),
-                                      ),
-                                    );
-                                  }
+                                  final NearbyCategory? category =
+                                      NearbyCategory.byTitle(service['title'] as String);
+                                  if (category == null) return;
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => NearbyPlacesScreen(category: category),
+                                    ),
+                                  );
                                 },
                                 borderRadius: BorderRadius.circular(15),
                                 child: Column(
