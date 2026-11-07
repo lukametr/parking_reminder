@@ -6,7 +6,7 @@ class AdConfig {
   static const String adMobAppId = 'ca-app-pub-8872582533953072~4948596381';
 
   /// Must be a Banner-format unit. Empty means no banner in release builds.
-  static const String bannerAdUnitId = '';
+  static const String bannerAdUnitId = 'ca-app-pub-8872582533953072/5359269234';
   static const String interstitialAdUnitId =
       'ca-app-pub-8872582533953072/1616568991';
 
