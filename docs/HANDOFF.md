@@ -17,7 +17,10 @@ Release **1.1.14 (vc20)**: banner-only ads + 10s parking dwell.
 
 - Browser worker: upload AAB + mapping to Play (no API path in this agent).
 - Merge PR into `ios-codemagic` when reviewed.
-- CI pinned to Flutter **3.47.9** (3.50 + AGP 8.11.1 breaks `debug-apk`).
+- CI `debug-apk` root cause: release `check(key.properties)` ran at config time
+  (via `evaluationDependsOn(":app)")`) and killed debug on runners without keys.
+  Fixed: attach signing only when present; fail-closed in `taskGraph.whenReady`
+  for release assemble/bundle only. Flutter Actions stay on 3.47.9 for AGP 8.11.1.
 
 ## Files touched
 
