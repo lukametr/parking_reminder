@@ -74,14 +74,16 @@ class LocationDisclosureScreen extends StatelessWidget {
                           titleEn: 'WHY we use location',
                           bodyKa:
                               'რომ ამოვიცნოთ, გაჩერდით თუ არა თბილისის ფასიანი '
-                              'ზონალური პარკინგის ლოტთან (≈5–8 მ), გაჩვენოთ ლოტის ნომერი '
+                              'ზონალური პარკინგის ლოტთან (≈5–8 მ, ≈10 წმ რეალური გაჩერება — '
+                              'საცობი/გავლა არ ითვლება), გაჩვენოთ ლოტის ნომერი '
                               'და შეგახსენოთ ოფიციალურ აპში (ge.msda.parking / MSDA) '
                               'პარკირების ჩართვა ან გამორთვა. აპი დროს არ ითვლის — '
                               'საფასური წუთებშია.',
                           bodyEn:
-                              'To detect when you stop near a paid Tbilisi zonal parking '
-                              'lot (~5–8 m), show the lot number, and remind you to start '
-                              'or stop parking in the official MSDA app (ge.msda.parking). '
+                              'To detect when you really stop (~10 s, not traffic crawl) '
+                              'near a paid Tbilisi zonal parking lot (~5–8 m), show the lot '
+                              'number, and remind you to start or stop parking in the '
+                              'official MSDA app (ge.msda.parking). '
                               'We do not run a billing countdown.',
                         ),
                         _section(

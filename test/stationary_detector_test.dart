@@ -29,9 +29,41 @@ void main() {
     );
   });
 
+  test('default settle is 10 seconds (pass-by ignored)', () {
+    final StationaryDetector d = StationaryDetector();
+    final DateTime t0 = DateTime.utc(2026, 1, 1);
+    d.isStationary(
+      latitude: 41.7,
+      longitude: 44.8,
+      accuracyMeters: 8,
+      speedMps: 0,
+      now: t0,
+    );
+    expect(
+      d.isStationary(
+        latitude: 41.70001,
+        longitude: 44.80001,
+        accuracyMeters: 8,
+        speedMps: 0.1,
+        now: t0.add(const Duration(seconds: 9)),
+      ),
+      isFalse,
+    );
+    expect(
+      d.isStationary(
+        latitude: 41.70001,
+        longitude: 44.80001,
+        accuracyMeters: 8,
+        speedMps: 0.1,
+        now: t0.add(const Duration(seconds: 10)),
+      ),
+      isTrue,
+    );
+  });
+
   test('speed resets stillness', () {
     final StationaryDetector d = StationaryDetector(
-      settle: const Duration(seconds: 5),
+      settle: const Duration(seconds: 10),
     );
     final DateTime t0 = DateTime.utc(2026, 1, 1);
     d.isStationary(
