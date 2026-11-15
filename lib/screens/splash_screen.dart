@@ -62,7 +62,6 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
   double _promptLat = 0;
   double _promptLng = 0;
   BannerAd? _banner;
-  InterstitialAd? _interstitial;
   bool _bannerReady = false;
   bool _showButtons = false;
   bool _showSOSButtons = false;
@@ -101,7 +100,6 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
         setState(() => _activeLotLabel = _session.activeLot);
       }
       _loadBanner();
-      _loadInterstitial();
       if (!await _ensureLocationPermission()) return;
       await _parkingService.getAllParkings();
       if (_session.activeLot == null) {
@@ -129,38 +127,6 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
       ),
       request: const AdRequest(),
     )..load();
-  }
-
-  void _loadInterstitial() {
-    InterstitialAd.load(
-      adUnitId: AdConfig.interstitialId,
-      request: const AdRequest(),
-      adLoadCallback: InterstitialAdLoadCallback(
-        onAdLoaded: (InterstitialAd ad) {
-          _interstitial = ad;
-        },
-        onAdFailedToLoad: (LoadAdError error) {
-          _interstitial = null;
-        },
-      ),
-    );
-  }
-
-  void _maybeShowInterstitial() {
-    final InterstitialAd? ad = _interstitial;
-    if (ad == null) return;
-    _interstitial = null;
-    ad.fullScreenContentCallback = FullScreenContentCallback(
-      onAdDismissedFullScreenContent: (InterstitialAd a) {
-        a.dispose();
-        _loadInterstitial();
-      },
-      onAdFailedToShowFullScreenContent: (InterstitialAd a, AdError error) {
-        a.dispose();
-        _loadInterstitial();
-      },
-    );
-    unawaited(ad.show());
   }
 
   void _onMonitorEvent(MonitorEvent event) {
@@ -326,7 +292,6 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_monitorSub?.cancel());
     _banner?.dispose();
-    _interstitial?.dispose();
     super.dispose();
   }
 
@@ -653,7 +618,6 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
                       _showButtons = true;
                       _showSOSButtons = false;
                     });
-                    _maybeShowInterstitial();
                   },
                   borderRadius: BorderRadius.circular(25),
                   child: const Center(
