@@ -17,6 +17,7 @@ Release **1.1.14 (vc20)**: banner-only ads + 10s parking dwell.
 
 - Browser worker: upload AAB + mapping to Play (no API path in this agent).
 - Merge PR into `ios-codemagic` when reviewed.
+- CI pinned to Flutter **3.47.9** (3.50 + AGP 8.11.1 breaks `debug-apk`).
 
 ## Files touched
 
