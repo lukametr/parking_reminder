@@ -56,6 +56,10 @@ class LotPromptPolicy(private val prefs: SharedPreferences) {
         const val PREF_DECLINED_LAT = "declined_lat"
         const val PREF_DECLINED_LNG = "declined_lng"
         const val PREF_PENDING_LOTS = "pending_prompt_lots"
-        const val DWELL_MS = 5_000L
+        /**
+         * Must stay nearly stopped on a lot this long before a stay prompt.
+         * Filters pass-by, brief lights stops, traffic-jam crawl, and slow rolling.
+         */
+        const val DWELL_MS = 10_000L
     }
 }

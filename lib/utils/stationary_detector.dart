@@ -1,14 +1,14 @@
 import 'lot_index.dart';
 
 /// Gating for "parked": low speed, small displacement, settle time.
-/// Native Activity Recognition is the primary battery signal; this is for
-/// Dart session reminders and unit tests.
+/// Default 10s filters pass-by, brief stops, and traffic-jam crawl —
+/// only a real ~10s stop should count. Native FGS uses the same dwell.
 class StationaryDetector {
   StationaryDetector({
     this.maxAccuracyMeters = 48,
     this.maxSpeedMps = 2.8,
     this.moveThresholdM = 22,
-    this.settle = const Duration(seconds: 5),
+    this.settle = const Duration(seconds: 10),
   });
 
   final double maxAccuracyMeters;

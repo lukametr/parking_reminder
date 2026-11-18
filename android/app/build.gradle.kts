@@ -28,8 +28,8 @@ android {
         applicationId = "com.lukacode.sosapp"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
-        versionCode = 16
-        versionName = "1.1.11"
+        versionCode = 21
+        versionName = "1.1.15"
         multiDexEnabled = true
         manifestPlaceholders["MAPS_API_KEY"] = mapsKey
     }
@@ -52,7 +52,8 @@ android {
 
     val props = Properties()
     val propFile = rootProject.file("key.properties")
-    if (propFile.exists()) {
+    val hasUploadSigning = propFile.exists()
+    if (hasUploadSigning) {
         props.load(FileInputStream(propFile))
         signingConfigs {
             create("release") {
@@ -73,18 +74,35 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            val releaseSigning = signingConfigs.findByName("release")
-            check(releaseSigning != null) {
-                "Missing android/key.properties (and upload keystore). " +
-                    "Release builds must use Play upload signing — copy key.properties.example " +
-                    "to key.properties and set storeFile/passwords. Debug builds are unchanged."
+            // Only attach signing when present. Fail-closed for *release* tasks is
+            // enforced below — do NOT check() here: root evaluationDependsOn(":app")
+            // evaluates this block during `assembleDebug` on CI (no key.properties).
+            if (hasUploadSigning) {
+                signingConfig = signingConfigs.getByName("release")
             }
-            signingConfig = releaseSigning
         }
         getByName("debug") {
             isMinifyEnabled = false
             isShrinkResources = false
         }
+    }
+}
+
+// Fail release packaging without upload keystore; leave debug CI green.
+gradle.taskGraph.whenReady {
+    val releasing = allTasks.any { task ->
+        val n = task.name
+        n == "assembleRelease" ||
+            n == "bundleRelease" ||
+            n.startsWith("assembleRelease") ||
+            n.startsWith("bundleRelease")
+    }
+    if (releasing && !rootProject.file("key.properties").exists()) {
+        throw GradleException(
+            "Missing android/key.properties (and upload keystore). " +
+                "Release builds must use Play upload signing — copy key.properties.example " +
+                "to key.properties and set storeFile/passwords. Debug builds are unchanged.",
+        )
     }
 }
 
