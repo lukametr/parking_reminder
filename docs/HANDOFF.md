@@ -2,29 +2,26 @@
 
 ## Current goal
 
-Release **1.1.14 (vc20)**: banner-only ads + 10s parking dwell.
+Release **1.1.15 (vc21)**: lock-screen / screen-off parking stay alert + short beep.
 
 ## Done
 
-- Removed interstitial load/show on სერვისები open; banner unit → `…/5359269234`.
-- Native `LotPromptPolicy.DWELL_MS` and Dart `StationaryDetector.settle` default: **5s → 10s**.
-- 10s purpose (LM): traffic jam / crawl / brief stop ≠ parking; only a real ~10s stop.
-- AD_ID permission kept/added; targetSdk 36; version **1.1.14+20**.
-- Unit tests updated for 10s dwell / pass-by.
-- Walkthrough (ka): store `docs/app-how-it-works.md`.
+- Native `ParkingNotifier`: new high-importance channel `parking_alerts_wake_v21` + `notification_beep.mp3`.
+- Full-screen intent when screen off, keyguard locked, or app not foreground; WakeLock on notify.
+- Checks: POST_NOTIFICATIONS, `canUseFullScreenIntent` (API 34+), battery optimization (one-time prompt).
+- Unlocked Flutter overlay + decline/accept + 10s dwell + 8 m nearest: unchanged.
+- Version **1.1.15+21**; signed AAB + mapping in project store `docs/releases/`.
+- Unit tests 20/20 including `lock_alert_release_test.dart`.
 
 ## Next
 
-- Browser worker: upload AAB + mapping to Play (no API path in this agent).
+- Browser worker: upload AAB + mapping to Play (do **not** upload from this agent).
 - Merge PR into `ios-codemagic` when reviewed.
-- CI `debug-apk` root cause: release `check(key.properties)` ran at config time
-  (via `evaluationDependsOn(":app)")`) and killed debug on runners without keys.
-  Fixed: attach signing only when present; fail-closed in `taskGraph.whenReady`
-  for release assemble/bundle only. Flutter Actions stay on 3.47.9 for AGP 8.11.1.
+- Field verify: lock phone, dwell 10s on lot → heads-up/FSI + beep without unlocking first.
 
 ## Files touched
 
-- `lib/config/ad_config.dart`, `lib/screens/splash_screen.dart`
-- `lib/utils/stationary_detector.dart`, `lib/utils/lot_prompt_policy.dart`
-- `android/.../LotPromptPolicy.kt`, `AndroidManifest.xml`, `build.gradle.kts`
-- `pubspec.yaml`, `test/stationary_detector_test.dart`, `docs/*`
+- `android/.../location/ParkingNotifier.kt`, `MainActivity.kt`, `AndroidManifest.xml`
+- `lib/services/parking_monitor.dart`, `lib/screens/splash_screen.dart`
+- `android/app/build.gradle.kts`, `pubspec.yaml`
+- `test/lock_alert_release_test.dart`, `docs/*`

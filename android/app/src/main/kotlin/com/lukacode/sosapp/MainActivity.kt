@@ -1,6 +1,7 @@
 package com.lukacode.sosapp
 
 import android.Manifest
+import android.app.KeyguardManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -114,6 +115,33 @@ class MainActivity : FlutterActivity() {
                         )
                         result.success(null)
                     }
+                    "alertDeliveryStatus" -> {
+                        ParkingNotifier.ensureChannels(this)
+                        result.success(
+                            mapOf(
+                                "notificationsAllowed" to ParkingNotifier.notificationsAllowed(this),
+                                "canUseFullScreenIntent" to ParkingNotifier.canUseFullScreenIntent(this),
+                                "ignoringBatteryOptimizations" to
+                                    ParkingNotifier.isIgnoringBatteryOptimizations(this),
+                                "screenInteractive" to ParkingNotifier.isScreenInteractive(this),
+                                "keyguardLocked" to ParkingNotifier.isKeyguardLocked(this),
+                                "alertChannelId" to ParkingNotifier.CHANNEL_ALERTS,
+                                "fgsRunning" to ParkingMonitorService.isRunning,
+                            ),
+                        )
+                    }
+                    "openFullScreenIntentSettings" -> {
+                        openFullScreenIntentSettings()
+                        result.success(null)
+                    }
+                    "openBatteryOptimizationSettings" -> {
+                        openBatteryOptimizationSettings()
+                        result.success(null)
+                    }
+                    "ensureAlertChannels" -> {
+                        ParkingNotifier.ensureChannels(this)
+                        result.success(ParkingNotifier.CHANNEL_ALERTS)
+                    }
                     "setSession" -> {
                         val args = call.arguments as? Map<*, *>
                         val lot = args?.get("lot") as? String
@@ -192,6 +220,62 @@ class MainActivity : FlutterActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
+        }
+        // Ask the keyguard to dismiss so the stay overlay is usable after FSI wake.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                val kg = getSystemService(KeyguardManager::class.java)
+                kg?.requestDismissKeyguard(this, null)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    private fun openFullScreenIntentSettings() {
+        try {
+            if (Build.VERSION.SDK_INT >= 34) {
+                startActivity(
+                    Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+                        data = Uri.parse("package:$packageName")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    },
+                )
+                return
+            }
+        } catch (_: Exception) {
+        }
+        startActivity(
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", packageName, null)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            },
+        )
+    }
+
+    private fun openBatteryOptimizationSettings() {
+        try {
+            startActivity(
+                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:$packageName")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                },
+            )
+            return
+        } catch (_: Exception) {
+        }
+        try {
+            startActivity(
+                Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                },
+            )
+        } catch (_: Exception) {
+            startActivity(
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.fromParts("package", packageName, null)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                },
+            )
         }
     }
 

@@ -109,6 +109,35 @@ class ParkingMonitor {
     if (!Platform.isAndroid) return null;
     return _methods.invokeMethod<String>('consumePendingPrompt');
   }
+
+  /// Native NotificationManager readiness for screen-off stay alerts.
+  Future<Map<String, Object?>> alertDeliveryStatus() async {
+    if (!Platform.isAndroid) {
+      return const <String, Object?>{};
+    }
+    final Object? raw = await _methods.invokeMethod<Object>('alertDeliveryStatus');
+    if (raw is Map) {
+      return raw.map(
+        (Object? k, Object? v) => MapEntry(k.toString(), v),
+      );
+    }
+    return const <String, Object?>{};
+  }
+
+  Future<void> openFullScreenIntentSettings() async {
+    if (!Platform.isAndroid) return;
+    await _methods.invokeMethod<void>('openFullScreenIntentSettings');
+  }
+
+  Future<void> openBatteryOptimizationSettings() async {
+    if (!Platform.isAndroid) return;
+    await _methods.invokeMethod<void>('openBatteryOptimizationSettings');
+  }
+
+  Future<String?> ensureAlertChannels() async {
+    if (!Platform.isAndroid) return null;
+    return _methods.invokeMethod<String>('ensureAlertChannels');
+  }
 }
 
 class MonitorEvent {

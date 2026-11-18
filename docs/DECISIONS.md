@@ -21,7 +21,14 @@ Package: `com.lukacode.sosapp` only (never TinDoger).
 - Billed per minute; **no** 55-minute ticket reminder.
 - After accept: show lot number + open MSDA (`ge.msda.parking`); remind to turn off after leaving.
 
+## Lock-screen parking alert (2026-11-18)
+
+- Field bug: stay/offer only appeared with screen **on**; screen **off/locked** → nothing.
+- Root cause: prompt was effectively Flutter-overlay / heads-up dependent; heads-up needs an interactive screen, and FSI/sound were not strong enough for lock/doze.
+- Fix: dedicated native channel `parking_alerts_wake_v21` at **IMPORTANCE_HIGH** with `res/raw/notification_beep.mp3`, `CATEGORY_ALARM`, `setFullScreenIntent` when screen off **or** keyguard locked **or** app backgrounded, short `PARTIAL_WAKE_LOCK`, Android 13+ notification + API 34 FSI checks, one-time battery-optimization prompt.
+- Unlocked overlay + accept/decline + 10s dwell + 5–8 m nearest lot: **unchanged**.
+
 ## Version / Play
 
 - Production line branch: `ios-codemagic` (not `main` — divergent history).
-- Current release target: **1.1.14+20**, targetSdk **36**.
+- Current release target: **1.1.15+21**, targetSdk **36**.

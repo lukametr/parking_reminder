@@ -197,8 +197,42 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
       // Notifications are separate from location disclosure (Play requirement).
       await Permission.notification.request();
       await Permission.activityRecognition.request();
+      // Screen-off stay alerts need NotificationManager + FSI + (often) battery exemption.
+      await ParkingMonitor.instance.ensureAlertChannels();
+      await _ensureLockScreenAlertDelivery();
     }
     return true;
+  }
+
+  /// Android 13+ POST_NOTIFICATIONS, API 34+ full-screen intent, battery opt-out.
+  Future<void> _ensureLockScreenAlertDelivery() async {
+    if (!Platform.isAndroid || !mounted) return;
+    try {
+      final Map<String, Object?> status =
+          await ParkingMonitor.instance.alertDeliveryStatus();
+      final bool notifOk = status['notificationsAllowed'] == true;
+      final bool fsiOk = status['canUseFullScreenIntent'] == true;
+      final bool battOk = status['ignoringBatteryOptimizations'] == true;
+      debugPrint(
+        'lock-alert status notif=$notifOk fsi=$fsiOk batt=$battOk '
+        'channel=${status['alertChannelId']}',
+      );
+      if (!notifOk) {
+        await Permission.notification.request();
+      }
+      // Prefer FSI first (needed to light the lock screen). Battery opt once.
+      if (!fsiOk) {
+        await ParkingMonitor.instance.openFullScreenIntentSettings();
+      } else if (!battOk) {
+        final prefs = await SharedPreferences.getInstance();
+        if (prefs.getBool('asked_battery_opt_v21') != true) {
+          await prefs.setBool('asked_battery_opt_v21', true);
+          await ParkingMonitor.instance.openBatteryOptimizationSettings();
+        }
+      }
+    } catch (e) {
+      debugPrint('lock-alert delivery check failed: $e');
+    }
   }
 
   Future<bool> _ensureLocationDisclosure() async {
