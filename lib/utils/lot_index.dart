@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import '../models/parking_lot.dart';
 
-/// ~50 m cells. 2108 Tbilisi lots fit in memory; avoids O(n) scans on every fix.
+/// ~50 m cells. ~2200 Tbilisi lots fit in memory; avoids O(n) scans on every fix.
 class LotIndex {
   LotIndex(this.lots, {this.cellDegrees = 0.00045}) {
     for (final ParkingLot lot in lots) {

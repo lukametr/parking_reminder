@@ -56,3 +56,4 @@ keystore.jks
 android/local.properties
 .dart_defines.json
 .firebase/
+.playwright-mcp/
