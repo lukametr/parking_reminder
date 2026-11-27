@@ -21,6 +21,13 @@ Package: `com.lukacode.sosapp` only (never TinDoger).
 - Billed per minute; **no** 55-minute ticket reminder.
 - After accept: show lot number + open MSDA (`ge.msda.parking`); remind to turn off after leaving.
 
+## Leave / exit distance (2026-11-27)
+
+- Leave-parking reminder when GPS is ≈ **200 m** from the parked point (was ≈80 m).
+- Native: `ParkingMonitorService.EXIT_BUFFER_METERS = 200.0`.
+- Dart mirror: `ParkingSessionTracker.exitBufferMeters = 200`.
+- Unchanged: 10s dwell, 5–8 m nearest-lot match, decline cooldown, lock-screen FSI/beep.
+
 ## Lock-screen parking alert (2026-11-18)
 
 - Field bug: stay/offer only appeared with screen **on**; screen **off/locked** → nothing.
@@ -31,4 +38,4 @@ Package: `com.lukacode.sosapp` only (never TinDoger).
 ## Version / Play
 
 - Production line branch: `ios-codemagic` (not `main` — divergent history).
-- Current release target: **1.1.15+21**, targetSdk **36**.
+- Current release target: **1.1.16+22**, targetSdk **36**.

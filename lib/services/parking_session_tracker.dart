@@ -9,7 +9,7 @@ import 'parking_monitor.dart';
 /// Leave-lot → remind to turn parking OFF in ge.msda.parking.
 class ParkingSessionTracker {
   ParkingSessionTracker({
-    this.exitBufferMeters = 80,
+    this.exitBufferMeters = 200,
     this.onLeftLot,
     this.emitNotifications = true,
   });
