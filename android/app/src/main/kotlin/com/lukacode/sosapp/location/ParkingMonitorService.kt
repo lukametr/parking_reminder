@@ -481,7 +481,7 @@ class ParkingMonitorService : Service() {
         const val PREF_PARK_LAT = "park_lat"
         const val PREF_PARK_LNG = "park_lng"
         const val PREF_LEFT_NOTIFIED = "left_notified"
-        const val EXIT_BUFFER_METERS = 80.0
+        const val EXIT_BUFFER_METERS = 200.0
 
         /**
          * Start (or command) the parking FGS only when Android allows it.

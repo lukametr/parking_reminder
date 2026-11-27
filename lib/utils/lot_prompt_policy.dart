@@ -1,6 +1,6 @@
 import 'lot_index.dart';
 
-/// Stay-prompt rules: 5s dwell is applied by the caller; this class is
+/// Stay-prompt rules: 10s dwell is applied by the caller; this class is
 /// global 10-minute cooldown + same-lot silence until the user leaves.
 class LotPromptPolicy {
   LotPromptPolicy({
